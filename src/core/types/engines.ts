@@ -27,6 +27,7 @@ export const DEFAULT_CODEX_MODELS: { value: string; label: string; description: 
   { value: 'gpt-5.1-codex-max', label: 'gpt-5.1-codex-max', description: 'Codex-optimized flagship for deep and fast reasoning' },
   { value: 'gpt-5.1-codex', label: 'gpt-5.1-codex', description: 'Codex-optimized (legacy)' },
   { value: 'gpt-5.1-codex-mini', label: 'gpt-5.1-codex-mini', description: 'Cheaper, faster, but less capable' },
+  { value: 'gpt-5.4', label: 'gpt-5.4', description: 'Latest frontier general model' },
   { value: 'gpt-5.2', label: 'gpt-5.2', description: 'Latest frontier model with improved knowledge, reasoning, and coding' },
   { value: 'gpt-5.1', label: 'gpt-5.1', description: 'Broad world knowledge with strong general reasoning' },
   { value: 'gpt-5-codex', label: 'gpt-5-codex', description: 'Codex-optimized (legacy)' },
@@ -34,10 +35,6 @@ export const DEFAULT_CODEX_MODELS: { value: string; label: string; description: 
   { value: 'gpt-5', label: 'gpt-5', description: 'Broad world knowledge with strong general reasoning' },
   { value: 'gpt-oss-120b', label: 'gpt-oss-120b', description: 'OpenAI OSS model (120B parameters)' },
   { value: 'gpt-oss-20b', label: 'gpt-oss-20b', description: 'OpenAI OSS model (20B parameters)' },
-  // Other OpenAI models (may work depending on your provider/router)
-  { value: 'gpt-4.1', label: 'gpt-4.1', description: 'General-purpose' },
-  { value: 'o4-mini', label: 'o4-mini', description: 'Fast reasoning' },
-  { value: 'o3', label: 'o3', description: 'Reasoning' },
 ];
 
 export type GeminiThinkingMode =
@@ -67,24 +64,12 @@ export function resolveGeminiThinkingBudget(mode: GeminiThinkingMode): number | 
 }
 
 export const DEFAULT_GEMINI_MODELS: { value: string; label: string; description: string }[] = [
-  { value: '', label: 'Default', description: 'Use Gemini CLI default model' },
-  // Aliases
-  { value: 'auto', label: 'auto', description: 'Alias: auto model selection' },
-  { value: 'pro', label: 'pro', description: 'Alias: pro' },
-  { value: 'flash', label: 'flash', description: 'Alias: flash' },
-  { value: 'flash-lite', label: 'flash-lite', description: 'Alias: flash-lite' },
-  // Concrete models (from gemini-cli repo defaults)
-  { value: 'gemini-2.5-pro', label: 'gemini-2.5-pro', description: 'Gemini 2.5 Pro' },
-  { value: 'gemini-2.5-flash', label: 'gemini-2.5-flash', description: 'Gemini 2.5 Flash' },
-  { value: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite', description: 'Gemini 2.5 Flash Lite' },
-  // Preview models
-  { value: 'gemini-3-pro-preview', label: 'gemini-3-pro-preview', description: 'Gemini 3 Pro (preview)' },
-  { value: 'gemini-3-flash-preview', label: 'gemini-3-flash-preview', description: 'Gemini 3 Flash (preview)' },
   { value: 'gemini-3.1-pro-preview', label: 'gemini-3.1-pro-preview', description: 'Gemini 3.1 Pro (preview)' },
-  { value: 'gemini-3.1-pro-preview-customtools', label: 'gemini-3.1-pro-preview-customtools', description: 'Gemini 3.1 Pro custom tools (preview)' },
-  // Auto aliases
-  { value: 'auto-gemini-2.5', label: 'auto-gemini-2.5', description: 'Alias: auto (Gemini 2.5)' },
-  { value: 'auto-gemini-3', label: 'auto-gemini-3', description: 'Alias: auto (Gemini 3)' },
+  { value: 'gemini-3-flash-preview', label: 'gemini-3-flash-preview', description: 'Gemini 3 Flash (preview)' },
+  { value: 'gemini-3-pro-preview', label: 'gemini-3-pro-preview', description: 'Gemini 3 Pro (preview)' },
+  { value: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite', description: 'Gemini 2.5 Flash Lite' },
+  { value: 'gemini-2.5-flash', label: 'gemini-2.5-flash', description: 'Gemini 2.5 Flash' },
+  { value: 'gemini-2.5-pro', label: 'gemini-2.5-pro', description: 'Gemini 2.5 Pro' },
 ];
 
 export function normalizeCodexReasoningEffort(value: unknown): CodexReasoningEffort {
