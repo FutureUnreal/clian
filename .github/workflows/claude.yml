@@ -23,28 +23,29 @@ jobs:
       pull-requests: read
       issues: read
       id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+      actions: read
+    env:
+      HAS_CLAUDE_KEY: ${{ secrets.CLAUDE_API_KEY != '' }}
     steps:
+      - name: Skip (missing CLAUDE_API_KEY)
+        if: env.HAS_CLAUDE_KEY != 'true'
+        run: echo "CLAUDE_API_KEY is not configured; skipping Claude workflow."
+
       - name: Checkout repository
+        if: env.HAS_CLAUDE_KEY == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
       - name: Run Claude Code
+        if: env.HAS_CLAUDE_KEY == 'true'
         id: claude
         uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_BASE_URL: ${{ secrets.CLAUDE_BASE_URL }}
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-          # This is an optional setting that allows Claude to read CI results on PRs
+          anthropic_api_key: ${{ secrets.CLAUDE_API_KEY }}
+          github_token: ${{ github.token }}
           additional_permissions: |
             actions: read
-
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
-
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
-
+          claude_args: ${{ vars.CLAUDE_ARGS || '' }}
