@@ -1,0 +1,40 @@
+/* Accessibility - Focus Visible Styles */
+
+/* outline + offset + border-radius */
+.clian-tool-header:focus-visible,
+.clian-thinking-header:focus-visible,
+.clian-subagent-header:focus-visible,
+.clian-header-btn:focus-visible,
+.clian-model-btn:focus-visible,
+.clian-thinking-current:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* outline + offset only */
+.clian-action-btn:focus-visible,
+.clian-toggle-switch:focus-visible,
+.clian-file-chip:focus-visible,
+.clian-image-chip:focus-visible,
+.clian-file-chip-remove:focus-visible,
+.clian-image-remove:focus-visible,
+.clian-image-modal-close:focus-visible,
+.clian-approved-remove-btn:focus-visible,
+.clian-save-env-btn:focus-visible,
+.clian-restore-snippet-btn:focus-visible,
+.clian-edit-snippet-btn:focus-visible,
+.clian-delete-snippet-btn:focus-visible,
+.clian-cancel-btn:focus-visible,
+.clian-save-btn:focus-visible,
+.clian-code-lang-label:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+/* outline + negative offset + border-radius */
+.clian-history-item-content:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+  border-radius: 4px;
+}

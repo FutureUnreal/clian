@@ -1,0 +1,88 @@
+.clian-thinking {
+  color: var(--clian-brand);
+  font-style: italic;
+  padding: 4px 0;
+  text-align: start;
+  animation: thinking-pulse 1.5s ease-in-out infinite;
+}
+
+.clian-thinking.clian-thinking--compact {
+  color: var(--clian-compact);
+}
+
+.clian-thinking-hint {
+  color: var(--text-muted);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.clian-thinking-block {
+  margin: 8px 0;
+}
+
+.clian-text-block+.clian-thinking-block {
+  margin-top: 8px;
+}
+
+.clian-thinking-block+.clian-text-block {
+  margin-top: 8px;
+}
+
+.clian-thinking-block+.clian-tool-call {
+  margin-top: 8px;
+}
+
+.clian-tool-call+.clian-thinking-block {
+  margin-top: 8px;
+}
+
+.clian-thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.clian-thinking-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--clian-brand);
+}
+
+/* Thinking block content - tree-branch style */
+.clian-thinking-content {
+  padding: 4px 0;
+  padding-inline-start: 24px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-height: 400px;
+  overflow-y: auto;
+  border-inline-start: 2px solid var(--background-modifier-border);
+  margin-inline-start: 7px;
+}
+
+.clian-thinking-content p {
+  margin: 0 0 8px 0;
+}
+
+.clian-thinking-content p:last-child {
+  margin-bottom: 0;
+}
+
+.clian-thinking-content .clian-code-wrapper {
+  margin: 8px 0;
+}
+
+.clian-thinking-content .clian-code-wrapper pre {
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+
+.clian-thinking-content code {
+  font-family: var(--font-monospace);
+  font-size: 12px;
+}

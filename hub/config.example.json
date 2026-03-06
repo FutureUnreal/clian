@@ -1,0 +1,18 @@
+{
+  "token": "CHANGE_ME",
+  "host": "0.0.0.0",
+  "port": 3006,
+  "cwd": "C:\\\\path\\\\to\\\\your\\\\vault",
+  "debug": false,
+  "sseFlushMs": 0,
+  "ssePatchFlushMs": 25,
+  "sseMaxBufferBytes": 2097152,
+  "claudeCodePath": "",
+  "model": "",
+  "claudeSettingSources": ["user", "project"],
+  "codexCommand": "codex",
+  "codexSandbox": "",
+  "geminiCommand": "gemini",
+  "geminiApprovalMode": "yolo",
+  "geminiSandbox": false
+}

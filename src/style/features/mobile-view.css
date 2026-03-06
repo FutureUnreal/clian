@@ -1,0 +1,76 @@
+/* Mobile View Styles - Touch-optimized UI for Obsidian Mobile */
+
+/* Scope all mobile-specific styles under .clian-mobile */
+.clian-mobile {
+  /* Container styles handled by inline styles in MobileView.ts */
+}
+
+/* Touch-optimized interactive elements */
+.clian-mobile .clian-mobile-tappable {
+  /* Smooth transitions for touch feedback */
+  transition: transform 0.1s ease-out, filter 0.1s ease-out;
+
+  /* Prevent text selection on tap */
+  -webkit-user-select: none;
+  user-select: none;
+
+  /* Optimize touch behavior */
+  touch-action: manipulation;
+
+  /* Remove default tap highlight */
+  -webkit-tap-highlight-color: transparent;
+
+  /* Hint browser for optimization */
+  will-change: transform;
+}
+
+/* Active/pressed state for touch feedback */
+.clian-mobile .clian-mobile-tappable:active {
+  /* Subtle scale down on press */
+  transform: scale(0.98);
+
+  /* Slight brightness reduction for visual feedback */
+  filter: brightness(0.95);
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .clian-mobile .clian-mobile-tappable {
+    transition: none;
+    will-change: auto;
+  }
+
+  .clian-mobile .clian-mobile-tappable:active {
+    transform: none;
+  }
+}
+
+/* Session select styling */
+.clian-mobile .clian-mobile-select {
+  /* Inline styles handle most properties */
+  /* This provides additional touch-specific enhancements */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Button styling */
+.clian-mobile .clian-mobile-button {
+  /* Inline styles handle most properties */
+  /* Ensure consistent font */
+  font-family: inherit;
+  font-weight: 500;
+}
+
+/* Textarea styling */
+.clian-mobile .clian-mobile-textarea {
+  /* Inline styles handle most properties */
+  /* Prevent iOS zoom on focus */
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Mobile thinking block scroll */
+.clian-mobile-thinking-content {
+  max-height: 400px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}

@@ -1,0 +1,8 @@
+/* Brand & semantic color tokens */
+.clian-container {
+  --clian-brand: #D97757;
+  --clian-brand-rgb: 217, 119, 87;
+  --clian-error: #dc3545;
+  --clian-error-rgb: 220, 53, 69;
+  --clian-compact: #5bc0de;
+}

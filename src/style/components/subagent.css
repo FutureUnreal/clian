@@ -1,0 +1,254 @@
+.clian-subagent-list {
+  margin: 8px 0;
+}
+
+.clian-text-block+.clian-subagent-list {
+  margin-top: 8px;
+}
+
+.clian-subagent-list+.clian-text-block {
+  margin-top: 8px;
+}
+
+.clian-tool-call+.clian-subagent-list {
+  margin-top: 8px;
+}
+
+.clian-subagent-list+.clian-tool-call {
+  margin-top: 8px;
+}
+
+.clian-subagent-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.clian-subagent-icon {
+  display: flex;
+  align-items: center;
+  color: var(--interactive-accent);
+  flex-shrink: 0;
+}
+
+.clian-subagent-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.clian-subagent-label {
+  flex: 1;
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-normal);
+}
+
+.clian-subagent-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.clian-subagent-status {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.clian-subagent-status svg {
+  width: 14px;
+  height: 14px;
+}
+
+.clian-subagent-status.status-running {
+  color: var(--text-accent);
+}
+
+.clian-subagent-status.status-completed {
+  color: var(--color-green);
+}
+
+.clian-subagent-status.status-error {
+  color: var(--color-red);
+}
+
+.clian-subagent-content {
+  padding: 4px 0;
+  padding-inline-start: 16px;
+  margin-inline-start: 7px;
+  border-inline-start: 2px solid var(--background-modifier-border);
+}
+
+.clian-subagent-section {
+  margin: 2px 0 6px;
+}
+
+.clian-subagent-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+.clian-subagent-section-header:hover {
+  color: var(--text-normal);
+}
+
+.clian-subagent-section-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.clian-subagent-section-body {
+  padding-inline-start: 6px;
+}
+
+.clian-subagent-prompt-text,
+.clian-subagent-result-output {
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.clian-subagent-result-output {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.clian-subagent-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.clian-subagent-tool-item {
+  display: block;
+}
+
+.clian-subagent-tool-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  padding: 2px 0;
+}
+
+.clian-subagent-tool-header:hover {
+  opacity: 0.85;
+}
+
+.clian-subagent-tool-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-accent);
+  flex-shrink: 0;
+}
+
+.clian-subagent-tool-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.clian-subagent-tool-name {
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  color: var(--text-normal);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.clian-subagent-tool-summary {
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.clian-subagent-tool-status {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.clian-subagent-tool-status svg {
+  width: 12px;
+  height: 12px;
+}
+
+.clian-subagent-tool-status.status-running {
+  color: var(--text-accent);
+}
+
+.clian-subagent-tool-status.status-completed {
+  color: var(--color-green);
+}
+
+.clian-subagent-tool-status.status-error,
+.clian-subagent-tool-status.status-blocked {
+  color: var(--color-red);
+}
+
+.clian-subagent-tool-content {
+  padding: 2px 0 2px 16px;
+}
+
+.clian-subagent-tool-empty {
+  color: var(--text-faint);
+  font-style: italic;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.clian-subagent-status-text {
+  font-size: 11px;
+  font-family: var(--font-monospace);
+  color: var(--text-muted);
+  margin-inline-start: auto;
+  padding-inline-start: 8px;
+}
+
+.clian-subagent-list.async .clian-subagent-icon {
+  color: var(--interactive-accent);
+}
+
+.clian-subagent-list.async.pending .clian-subagent-status-text {
+  color: var(--text-muted);
+}
+
+.clian-subagent-list.async.running .clian-subagent-status-text {
+  color: var(--text-accent);
+}
+
+.clian-subagent-list.async.awaiting .clian-subagent-status-text {
+  color: var(--color-yellow);
+}
+
+.clian-subagent-list.async.completed .clian-subagent-status-text {
+  color: var(--color-green);
+}
+
+.clian-subagent-list.async.error .clian-subagent-status-text {
+  color: var(--color-red);
+}
+
+.clian-subagent-list.async.orphaned .clian-subagent-status-text {
+  color: var(--color-orange);
+}

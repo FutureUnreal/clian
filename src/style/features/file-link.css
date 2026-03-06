@@ -1,0 +1,22 @@
+/* Clickable file links that open files in Obsidian */
+.clian-file-link {
+  color: var(--text-accent);
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.15s ease;
+}
+
+.clian-file-link:hover {
+  color: var(--text-accent-hover);
+  text-decoration: underline;
+}
+
+/* File link inside inline code */
+code .clian-file-link {
+  color: var(--text-accent);
+}
+
+code .clian-file-link:hover {
+  color: var(--text-accent-hover);
+}

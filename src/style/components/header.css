@@ -1,0 +1,176 @@
+/* Header - logo, title/tabs slot, and actions */
+.clian-header {
+  display: flex;
+  align-items: center;
+  padding: 0 12px 12px 12px;
+}
+
+/* Title slot: contains logo + title (or tabs in header mode) */
+.clian-title-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;  /* Allow flex item to shrink below content size */
+}
+
+/* Legacy class for backwards compatibility */
+.clian-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.clian-title-text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.clian-logo {
+  display: flex;
+  align-items: center;
+}
+
+/* Header actions (end side - always stays at end via margin-inline-start: auto) */
+.clian-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+.clian-header-actions-slot {
+  /* No margin-inline-start: auto here; it's set by the base .clian-header-actions */
+}
+
+.clian-header .clian-tab-bar-container {
+  display: flex;
+  gap: 4px;
+}
+
+.clian-header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-faint);
+  transition: color 0.15s ease;
+}
+
+.clian-header-btn:hover {
+  color: var(--text-normal);
+}
+
+.clian-header-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.clian-new-tab-btn svg {
+  width: 16.8px;
+  height: 16.8px;
+}
+
+/* Engine switcher (Claude/Codex/Gemini) */
+.clian-engine-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clian-engine-switch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: var(--text-faint);
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.clian-engine-switch-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.clian-engine-switch-btn.is-active {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border);
+}
+
+.clian-engine-switch-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Engine chooser dropdown for the new tab button (legacy, kept for compatibility) */
+.clian-engine-container {
+  position: relative;
+}
+
+.clian-engine-menu {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  inset-inline-start: 0;
+  margin-bottom: 4px;
+  background: var(--background-secondary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  overflow: hidden;
+  min-width: 160px;
+}
+
+.clian-engine-menu.visible {
+  display: block;
+}
+
+/* Header mode: dropdown instead of dropup */
+.clian-container--header-mode .clian-engine-menu {
+  bottom: auto;
+  top: 100%;
+  margin-bottom: 0;
+  margin-top: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.clian-engine-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  transition: background 0.15s ease;
+  cursor: pointer;
+}
+
+.clian-engine-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.clian-engine-item:last-child {
+  border-bottom: none;
+}
+
+.clian-engine-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.clian-engine-icon svg {
+  width: 16px;
+  height: 16px;
+}

@@ -1,0 +1,250 @@
+/* Status Panel - persistent bottom panel for async subagents and todos */
+
+.clian-status-panel-container {
+  flex-shrink: 0;
+  padding: 0 14px;
+}
+
+.clian-status-panel {
+  padding-top: 12px;
+}
+
+/* Async Subagent Section */
+
+.clian-status-panel-subagents {
+  margin-bottom: 4px;
+}
+
+.clian-status-panel-done-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.clian-status-panel-combined-row {
+  justify-content: flex-start;
+}
+
+.clian-status-panel-combined-row .clian-status-panel-done-text {
+  flex: 1;
+}
+
+.clian-status-panel-icon.clian-status-panel-done-icon {
+  color: var(--color-green);
+}
+
+.clian-status-panel-icon.clian-status-panel-bot-icon {
+  color: var(--interactive-accent);
+}
+
+.clian-status-panel-done-text {
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.clian-status-panel-running-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 0;
+}
+
+.clian-status-panel-running-text {
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  color: var(--color-cyan);
+}
+
+/* Todo Section */
+
+.clian-status-panel-todos {
+  margin-top: 4px;
+}
+
+.clian-status-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+  overflow: hidden;
+}
+
+.clian-status-panel-header:hover {
+  background: var(--background-modifier-hover);
+}
+
+.clian-status-panel-header:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.clian-status-panel-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-accent);
+  flex-shrink: 0;
+}
+
+.clian-status-panel-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.clian-status-panel-label {
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+
+.clian-status-panel-current {
+  flex: 1;
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clian-status-panel-status {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.clian-status-panel-status svg {
+  width: 14px;
+  height: 14px;
+}
+
+.clian-status-panel-status.status-completed {
+  color: var(--color-green);
+}
+
+.clian-status-panel-content {
+  padding: 2px 0;
+}
+
+/* Individual todo item - shared by status panel and inline tool via .clian-todo-list-container */
+.clian-todo-list-container .clian-todo-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 1px 0;
+}
+
+.clian-todo-list-container .clian-todo-status-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.clian-todo-list-container .clian-todo-status-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.clian-todo-list-container .clian-todo-text {
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  line-height: 1.4;
+  flex: 1;
+  padding-left: 12px;
+}
+
+.clian-todo-list-container .clian-todo-pending .clian-todo-status-icon {
+  color: var(--text-normal);
+}
+
+.clian-todo-list-container .clian-todo-pending .clian-todo-status-icon svg {
+  transform: scale(2);
+}
+
+.clian-todo-list-container .clian-todo-pending .clian-todo-text {
+  color: var(--text-normal);
+}
+
+.clian-todo-list-container .clian-todo-in_progress .clian-todo-status-icon {
+  color: var(--interactive-accent);
+}
+
+.clian-todo-list-container .clian-todo-in_progress .clian-todo-status-icon svg {
+  transform: scale(2);
+}
+
+.clian-todo-list-container .clian-todo-in_progress .clian-todo-text {
+  color: var(--text-normal);
+}
+
+.clian-todo-list-container .clian-todo-completed .clian-todo-status-icon {
+  color: var(--color-green);
+}
+
+.clian-todo-list-container .clian-todo-completed .clian-todo-text {
+  color: var(--text-muted);
+}
+
+/* Bash Output Section */
+
+.clian-status-panel-bash {
+  margin-bottom: 4px;
+}
+
+.clian-status-panel-bash-header {
+  padding: 4px 0;
+}
+
+.clian-status-panel-bash-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clian-status-panel-bash-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+
+.clian-status-panel-bash-action:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.clian-status-panel-bash-content {
+  padding-top: 2px;
+  max-height: 320px;
+  max-height: min(40vh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.clian-status-panel-bash-entry {
+  margin: 4px 0;
+}
+
+.clian-status-panel-bash-entry .clian-tool-icon svg {
+  width: 14px;
+  height: 14px;
+  position: relative;
+  top: -1px;
+}
+
+.clian-status-panel-bash-entry .clian-tool-call {
+  margin: 0;
+}
+
+/* Keep bash output blocks from growing without bound */
+.clian-status-panel-bash-entry .clian-tool-result-text {
+  max-height: 200px;
+  overflow-y: auto;
+  word-break: break-word;
+}
