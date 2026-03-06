@@ -34,10 +34,6 @@
   color: var(--text-normal);
 }
 
-.clian-tab-badge-index {
-  line-height: 1;
-}
-
 .clian-tab-badge-active {
   border-color: var(--interactive-accent);
   color: var(--text-normal);

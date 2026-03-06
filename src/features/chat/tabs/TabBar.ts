@@ -55,10 +55,6 @@ export class TabBar {
 
     const badgeEl = this.containerEl.createDiv({
       cls: `clian-tab-badge ${stateClass}`,
-    });
-
-    badgeEl.createSpan({
-      cls: 'clian-tab-badge-index',
       text: String(item.index),
     });
 

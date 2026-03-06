@@ -1,7 +1,7 @@
 import * as fs from 'fs';
-import { fileURLToPath } from 'url';
 import type { App, EventRef } from 'obsidian';
 import { Notice, TFile } from 'obsidian';
+import { fileURLToPath } from 'url';
 
 import type { AgentManager } from '../../../core/agents';
 import type { McpServerManager } from '../../../core/mcp';
