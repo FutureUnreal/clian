@@ -310,7 +310,7 @@
     },
     "maxTabs": {
       "name": "Maximum chat tabs",
-      "desc": "Maximum number of concurrent chat tabs (3-10). Each tab uses a separate Claude session.",
+      "desc": "Maximum number of concurrent chat tabs (minimum 1, no hard upper limit). Each tab uses a separate engine session.",
       "warning": "More than 5 tabs may impact performance and memory usage."
     },
     "tabBarPosition": {

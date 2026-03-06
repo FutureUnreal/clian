@@ -35,10 +35,8 @@ export class TabBar {
    * @param items Tab items to render.
    */
   update(items: TabBarItem[]): void {
-    // Clear existing badges
     this.containerEl.empty();
 
-    // Render badges
     for (const item of items) {
       this.renderBadge(item);
     }
@@ -46,7 +44,6 @@ export class TabBar {
 
   /** Renders a single tab badge. */
   private renderBadge(item: TabBarItem): void {
-    // Determine state class (priority: active > attention > streaming > idle)
     let stateClass = 'clian-tab-badge-idle';
     if (item.isActive) {
       stateClass = 'clian-tab-badge-active';
@@ -58,22 +55,23 @@ export class TabBar {
 
     const badgeEl = this.containerEl.createDiv({
       cls: `clian-tab-badge ${stateClass}`,
+    });
+
+    badgeEl.createSpan({
+      cls: 'clian-tab-badge-index',
       text: String(item.index),
     });
 
-    // Tooltip with full title
     badgeEl.setAttribute('aria-label', item.title);
     badgeEl.setAttribute('title', item.title);
 
-    // Click handler to switch tab
     badgeEl.addEventListener('click', () => {
       this.callbacks.onTabClick(item.id);
     });
 
-    // Right-click to close (if allowed)
     if (item.canClose) {
-      badgeEl.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
+      badgeEl.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
         this.callbacks.onTabClose(item.id);
       });
     }

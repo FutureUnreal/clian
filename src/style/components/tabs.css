@@ -11,11 +11,13 @@
 }
 
 .clian-tab-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
+  gap: 4px;
+  min-width: 24px;
   height: 24px;
+  padding: 0 6px;
   border-radius: 4px;
   border: 2px solid var(--background-modifier-border);
   font-size: 12px;
@@ -23,12 +25,17 @@
   cursor: pointer;
   color: var(--text-muted);
   background: var(--background-primary);
+  flex-shrink: 0;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
 .clian-tab-badge:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
+}
+
+.clian-tab-badge-index {
+  line-height: 1;
 }
 
 .clian-tab-badge-active {

@@ -69,9 +69,9 @@
   height: 16px;
 }
 
-.clian-new-tab-btn svg {
-  width: 16.8px;
-  height: 16.8px;
+.clian-close-tab-btn svg {
+  width: 15px;
+  height: 15px;
 }
 
 /* Engine switcher (Claude/Codex/Gemini) */

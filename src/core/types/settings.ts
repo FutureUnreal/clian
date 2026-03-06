@@ -308,7 +308,7 @@ export interface ClianSettings {
   slashCommands: SlashCommand[];
 
   // UI preferences
-  maxTabs: number;  // Maximum number of chat tabs (3-10, default 3)
+  maxTabs: number;  // Maximum number of chat tabs (minimum 1, default 20)
   tabBarPosition: TabBarPosition;  // Where to show tab bar ('input' or 'header')
   enableAutoScroll: boolean;  // Enable auto-scroll during streaming (default: true)
   openInMainTab: boolean;  // Open chat panel in main editor area instead of sidebar
@@ -379,7 +379,7 @@ export const DEFAULT_SETTINGS: ClianSettings = {
   slashCommands: [],
 
   // UI preferences
-  maxTabs: 3,  // Default to 3 tabs (safe resource usage)
+  maxTabs: 20,  // Default to 20 tabs; users can lower or raise this freely
   tabBarPosition: 'input',  // Default to input mode (current behavior)
   enableAutoScroll: true,  // Default to auto-scroll enabled
   openInMainTab: false,  // Default to sidebar (current behavior)

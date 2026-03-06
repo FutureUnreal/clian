@@ -21,7 +21,6 @@ import {
 } from './Tab';
 import {
   DEFAULT_MAX_TABS,
-  MAX_TABS,
   MIN_TABS,
   type PersistedTabManagerState,
   type PersistedTabState,
@@ -51,11 +50,15 @@ export class TabManager implements TabManagerInterface {
 
   /**
    * Gets the current max tabs limit from settings.
-   * Clamps to MIN_TABS and MAX_TABS bounds.
+   * Enforces only the minimum bound; users can raise the limit freely.
    */
   private getMaxTabs(): number {
-    const settingsValue = this.plugin.settings.maxTabs ?? DEFAULT_MAX_TABS;
-    return Math.max(MIN_TABS, Math.min(MAX_TABS, settingsValue));
+    const settingsValue = Number(this.plugin.settings.maxTabs ?? DEFAULT_MAX_TABS);
+    if (!Number.isFinite(settingsValue)) {
+      return DEFAULT_MAX_TABS;
+    }
+
+    return Math.max(MIN_TABS, Math.floor(settingsValue));
   }
 
   constructor(

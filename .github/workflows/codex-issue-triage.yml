@@ -57,7 +57,7 @@ jobs:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           # NOTE: openai/codex-action expects a full Responses endpoint (…/v1/responses).
           responses-api-endpoint: ${{ steps.responses_endpoint.outputs.endpoint }}
-          model: ${{ vars.OPENAI_MODEL || 'gpt-5.2' }}
+          model: ${{ vars.OPENAI_MODEL || 'gpt-5.4' }}
           effort: ${{ vars.OPENAI_EFFORT || 'medium' }}
           sandbox: read-only
           safety-strategy: drop-sudo

@@ -4,7 +4,7 @@ import { ItemView, Notice, setIcon } from 'obsidian';
 import { type ChatFlavor, type ClianViewType, VIEW_TYPE_CLIAN } from '../../core/types';
 import type ClianPlugin from '../../main';
 import { GEMINI_ICON_SVG, LOGO_SVG, OPENAI_LOGO_SVG } from './constants';
-import { TabBar, TabManager, updatePlanModeUI } from './tabs';
+import { DEFAULT_MAX_TABS, MIN_TABS, TabBar, TabManager, updatePlanModeUI } from './tabs';
 import type { TabData, TabId } from './tabs/types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -253,12 +253,12 @@ export class ClianView extends ItemView {
     const engineSwitch = this.headerActionsContent.createDiv({ cls: 'clian-engine-switch' });
     const addEngineSwitchBtn = (label: string, flavor: ChatFlavor): void => {
       const btn = engineSwitch.createDiv({ cls: 'clian-engine-switch-btn' });
-      btn.setAttribute('aria-label', `Switch to ${label}`);
-      btn.setAttribute('title', label);
+      btn.setAttribute('aria-label', `New ${label} tab`);
+      btn.setAttribute('title', `New ${label} tab`);
       this.renderEngineLogo(btn, flavor, 16);
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        await this.switchToFlavor(flavor);
+        await this.openFlavorTab(flavor);
       });
       this.engineSwitchButtons[flavor] = btn;
     };
@@ -267,12 +267,13 @@ export class ClianView extends ItemView {
     addEngineSwitchBtn('Codex', 'codex');
     addEngineSwitchBtn('Gemini', 'gemini');
 
-    // New tab button (plus icon) - creates a new tab in the currently active engine
-    const newTabBtn = this.headerActionsContent.createDiv({ cls: 'clian-header-btn clian-new-tab-btn' });
-    setIcon(newTabBtn, 'square-plus');
-    newTabBtn.setAttribute('aria-label', 'New tab');
-    newTabBtn.addEventListener('click', async () => {
-      await this.handleNewTab();
+    // Close active tab button
+    const closeTabBtn = this.headerActionsContent.createDiv({ cls: 'clian-header-btn clian-close-tab-btn' });
+    setIcon(closeTabBtn, 'x');
+    closeTabBtn.setAttribute('aria-label', 'Close current tab');
+    closeTabBtn.setAttribute('title', 'Close current tab');
+    closeTabBtn.addEventListener('click', async () => {
+      await this.handleCloseActiveTab();
     });
 
     // New conversation button (square-pen icon - new conversation in current tab)
@@ -376,25 +377,33 @@ export class ClianView extends ItemView {
     this.updateTabBarVisibility();
   }
 
-  private async switchToFlavor(flavor: ChatFlavor): Promise<void> {
+  private async handleCloseActiveTab(): Promise<void> {
+    const activeTabId = this.tabManager?.getActiveTabId();
+    if (!activeTabId) return;
+
+    await this.handleTabClose(activeTabId);
+  }
+
+  private getMaxTabsNoticeCount(): number {
+    const settingsValue = Number(this.plugin.settings.maxTabs ?? DEFAULT_MAX_TABS);
+    if (!Number.isFinite(settingsValue)) {
+      return DEFAULT_MAX_TABS;
+    }
+
+    return Math.max(MIN_TABS, Math.floor(settingsValue));
+  }
+
+  private async openFlavorTab(flavor: ChatFlavor): Promise<void> {
     if (!this.tabManager) return;
-
-    const activeTab = this.tabManager.getActiveTab();
-    if (activeTab?.flavor === flavor) {
-      return;
-    }
-
-    const existing = this.tabManager.getAllTabs().find(t => t.flavor === flavor) ?? null;
-    if (existing) {
-      await this.tabManager.switchToTab(existing.id);
-      return;
-    }
 
     const tab = await this.tabManager.createTab(null, undefined, flavor);
     if (!tab) {
-      const maxTabs = this.plugin.settings.maxTabs ?? 3;
+      const maxTabs = this.getMaxTabsNoticeCount();
       new Notice(`Maximum ${maxTabs} tabs allowed`);
+      return;
     }
+
+    this.updateTabBarVisibility();
   }
 
   private async handleNewTab(flavor?: ChatFlavor): Promise<void> {
@@ -402,7 +411,7 @@ export class ClianView extends ItemView {
       ? await this.tabManager?.createTab(null, undefined, flavor)
       : await this.tabManager?.createTab();
     if (!tab) {
-      const maxTabs = this.plugin.settings.maxTabs ?? 3;
+      const maxTabs = this.getMaxTabsNoticeCount();
       new Notice(`Maximum ${maxTabs} tabs allowed`);
       return;
     }

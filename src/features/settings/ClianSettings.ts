@@ -21,6 +21,7 @@ import type ClianPlugin from '../../main';
 import { findNodeExecutable, formatContextLimit, getCustomModelIds, getEnhancedPath, getModelsFromEnvironment, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import { expandHomePath } from '../../utils/path';
 import { buildNavMappingText, parseNavMappings } from './keyboardNavigation';
+import { DEFAULT_MAX_TABS, MIN_TABS } from '../chat/tabs/types';
 import { AgentSettings } from './ui/AgentSettings';
 import { EnvSnippetManager } from './ui/EnvSnippetManager';
 import { McpSettingsManager } from './ui/McpSettingsManager';
@@ -658,21 +659,54 @@ export class ClianSettingTab extends PluginSettingTab {
     maxTabsWarningEl.style.display = 'none';
     maxTabsWarningEl.setText(t('settings.maxTabs.warning'));
 
+    const normalizeMaxTabs = (value: number): number => {
+      if (!Number.isFinite(value)) {
+        return DEFAULT_MAX_TABS;
+      }
+
+      return Math.max(MIN_TABS, Math.floor(value));
+    };
+
     const updateMaxTabsWarning = (value: number): void => {
       maxTabsWarningEl.style.display = value > 5 ? 'block' : 'none';
     };
 
-    maxTabsSetting.addSlider((slider) => {
-      slider
-        .setLimits(3, 10, 1)
-        .setValue(this.plugin.settings.maxTabs ?? 3)
-        .setDynamicTooltip()
+    maxTabsSetting.addText((text) => {
+      const savedValue = normalizeMaxTabs(this.plugin.settings.maxTabs ?? DEFAULT_MAX_TABS);
+      text
+        .setPlaceholder(String(DEFAULT_MAX_TABS))
+        .setValue(String(savedValue))
         .onChange(async (value) => {
-          this.plugin.settings.maxTabs = value;
+          const trimmed = value.trim();
+          if (!trimmed) {
+            return;
+          }
+
+          const parsed = Number(trimmed);
+          if (!Number.isFinite(parsed)) {
+            return;
+          }
+
+          const normalized = normalizeMaxTabs(parsed);
+          this.plugin.settings.maxTabs = normalized;
           await this.plugin.saveSettings();
-          updateMaxTabsWarning(value);
+          updateMaxTabsWarning(normalized);
         });
-      updateMaxTabsWarning(this.plugin.settings.maxTabs ?? 3);
+
+      text.inputEl.type = 'number';
+      text.inputEl.min = String(MIN_TABS);
+      text.inputEl.step = '1';
+      text.inputEl.addEventListener('blur', async () => {
+        const normalized = normalizeMaxTabs(Number(text.inputEl.value.trim()));
+        text.setValue(String(normalized));
+        if (this.plugin.settings.maxTabs !== normalized) {
+          this.plugin.settings.maxTabs = normalized;
+          await this.plugin.saveSettings();
+          updateMaxTabsWarning(normalized);
+        }
+      });
+
+      updateMaxTabsWarning(savedValue);
     });
 
     const hostnameKey = getHostnameKey();

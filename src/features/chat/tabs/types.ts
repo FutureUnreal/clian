@@ -35,23 +35,15 @@ import type { NavigationSidebar } from '../ui';
 /**
  * Default number of tabs allowed.
  *
- * Set to 3 to balance usability with resource usage:
- * - Each tab has its own ClianService and persistent query
- * - More tabs = more memory and potential SDK processes
- * - 3 tabs allows multi-tasking without excessive overhead
+ * Use a generous default so engine buttons can freely spawn tabs
+ * without immediately hitting an artificial low ceiling.
  */
-export const DEFAULT_MAX_TABS = 3;
+export const DEFAULT_MAX_TABS = 20;
 
 /**
  * Minimum number of tabs allowed (settings floor).
  */
-export const MIN_TABS = 3;
-
-/**
- * Maximum number of tabs allowed (settings ceiling).
- * Users can configure up to this many tabs via settings.
- */
-export const MAX_TABS = 10;
+export const MIN_TABS = 1;
 
 /**
  * Minimum max-height for textarea in pixels.
