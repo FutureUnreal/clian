@@ -48,4 +48,6 @@ jobs:
           github_token: ${{ github.token }}
           additional_permissions: |
             actions: read
-          claude_args: ${{ vars.CLAUDE_ARGS || '' }}
+          claude_args: |
+            --model ${{ vars.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929' }}
+            ${{ vars.CLAUDE_ARGS || '' }}

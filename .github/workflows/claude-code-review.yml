@@ -49,4 +49,6 @@ jobs:
             Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
 
             Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
-          claude_args: ${{ vars.CLAUDE_REVIEW_ARGS || '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"' }}
+          claude_args: |
+            --model ${{ vars.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929' }}
+            ${{ vars.CLAUDE_REVIEW_ARGS || '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"' }}
