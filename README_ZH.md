@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/github/license/FutureUnreal/clian)](LICENSE)
 
 
-本项目基于 [Claudian](https://github.com/YishenTu/claudian) 进行二次开发，感谢 [YishenTu](https://github.com/YishenTu) 和 Claudian 项目提供的原始基础与灵感，并在此基础上额外支持了 Codex、Gemini 和安卓端。
+本项目基于 [Claudian](https://github.com/YishenTu/claudian) 进行二次开发，感谢 [YishenTu](https://github.com/YishenTu) 和 Claudian 项目提供的原始基础与灵感。同时也感谢 [OpenAI Codex](https://github.com/openai/codex) 与 [Gemini CLI](https://github.com/google-gemini/gemini-cli) 提供的工具生态与启发，使我们能够在此基础上进一步补充 Codex、Gemini 和安卓端支持。
 
 ## 功能特性
 
@@ -433,5 +433,7 @@ hub/                             # 远程 Hub 服务器（用于移动端）
 ## 致谢
 
 - [Claudian](https://github.com/YishenTu/claudian) —— 本项目基于其进行二次开发
+- [OpenAI Codex](https://github.com/openai/codex) —— 为 Codex 集成提供了工具生态与启发
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) —— 为 Gemini 集成提供了工具生态与启发
 - [Obsidian](https://obsidian.md) 提供了插件 API
 - [Anthropic](https://anthropic.com) 提供了 Claude 和 [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview)

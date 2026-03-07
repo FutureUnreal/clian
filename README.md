@@ -10,7 +10,7 @@ English | [中文](README_ZH.md)
 
 An Obsidian plugin that embeds Claude / Codex / Gemini as AI collaborators in your vault. Your vault becomes the agent's working directory, giving it full agentic capabilities: file read/write, search, bash commands, and multi-step workflows.
 
-This project is a derivative work based on [Claudian](https://github.com/YishenTu/claudian). Many thanks to [YishenTu](https://github.com/YishenTu) and the Claudian project for the original foundation and inspiration. On top of that foundation, this project additionally adds support for Codex, Gemini, and Android.
+This project is a derivative work based on [Claudian](https://github.com/YishenTu/claudian). Many thanks to [YishenTu](https://github.com/YishenTu) and the Claudian project for the original foundation and inspiration. We also appreciate [OpenAI Codex](https://github.com/openai/codex) and [Gemini CLI](https://github.com/google-gemini/gemini-cli) for the tooling ecosystem and inspiration behind the additional Codex, Gemini, and Android support added here.
 
 ## Features
 
@@ -436,5 +436,7 @@ Licensed under the [MIT License](LICENSE).
 ## Acknowledgments
 
 - [Claudian](https://github.com/YishenTu/claudian) by [YishenTu](https://github.com/YishenTu) for the original foundation this project builds on
+- [OpenAI Codex](https://github.com/openai/codex) for the open tooling and ideas behind the Codex integration
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) for the open tooling and ideas behind the Gemini integration
 - [Obsidian](https://obsidian.md) for the plugin API
 - [Anthropic](https://anthropic.com) for Claude and the [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview)
