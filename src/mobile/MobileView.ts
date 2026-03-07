@@ -167,7 +167,12 @@ const CUSTOM_MODEL_VALUE = '__custom__';
 
 function getPermissionOptionsForFlavor(flavor: SessionFlavor): { value: SessionPermissionMode; label: string }[] {
   if (flavor === 'claude') {
-    return [];
+    return [
+      { value: '', label: 'Server default' },
+      { value: 'normal', label: 'Safe' },
+      { value: 'plan', label: 'Plan' },
+      { value: 'yolo', label: 'YOLO' },
+    ];
   }
 
   if (flavor === 'codex') {
@@ -280,6 +285,7 @@ class SessionConfigModal extends Modal {
   private readonly onDeleted: ((sessionId: string) => Promise<void>) | null;
 
   private initialName: string;
+  private initialCwd: string;
   private initialFlavor: SessionFlavor;
   private initialModel: string;
   private initialPermissionMode: SessionPermissionMode;
@@ -291,6 +297,7 @@ class SessionConfigModal extends Modal {
       mode: SessionModalMode;
       client: RemoteHubClient;
       sessionId?: string | null;
+      cwd?: string | null;
       name?: string | null;
       flavor?: string | null;
       model?: string | null;
@@ -307,6 +314,7 @@ class SessionConfigModal extends Modal {
     this.onSuccess = options.onSuccess;
     this.onDeleted = typeof options.onDeleted === 'function' ? options.onDeleted : null;
     this.initialName = (options.name ?? '').trim();
+    this.initialCwd = (options.cwd ?? '').trim();
     this.initialFlavor = normalizeFlavor(options.flavor);
     this.initialModel = (options.model ?? '').trim();
     this.initialPermissionMode = normalizeSessionPermissionMode(options.permissionMode);
@@ -552,10 +560,11 @@ class SessionConfigModal extends Modal {
 
         if (this.mode === 'create') {
           const resp = await this.client.createSession({
+            cwd: this.initialCwd ? this.initialCwd : undefined,
             name: name ? name : undefined,
             flavor: flavorValue,
             model: model ? model : undefined,
-            permissionMode: flavorValue === 'claude' || !permissionValue ? undefined : permissionValue,
+            permissionMode: !permissionValue ? undefined : permissionValue,
             thinkingMode: thinkingMode ? thinkingMode : undefined,
           });
           await this.onSuccess({ sessionId: resp.sessionId });
@@ -570,10 +579,11 @@ class SessionConfigModal extends Modal {
 
         if (flavorValue !== this.initialFlavor) {
           const resp = await this.client.createSession({
+            cwd: this.initialCwd ? this.initialCwd : undefined,
             name: name ? name : undefined,
             flavor: flavorValue,
             model: model ? model : undefined,
-            permissionMode: flavorValue === 'claude' || !permissionValue ? undefined : permissionValue,
+            permissionMode: !permissionValue ? undefined : permissionValue,
             thinkingMode: thinkingMode ? thinkingMode : undefined,
           });
           await this.onSuccess({ sessionId: resp.sessionId });
@@ -581,7 +591,7 @@ class SessionConfigModal extends Modal {
           await this.client.updateSession(this.sessionId, {
             name,
             model,
-            permissionMode: flavorValue === 'claude' || !permissionValue ? undefined : permissionValue,
+            permissionMode: !permissionValue ? undefined : permissionValue,
             thinkingMode,
           });
           await this.onSuccess({});
@@ -1503,9 +1513,18 @@ export class ClianMobileView extends ItemView {
       return;
     }
 
+    const activeSessionId = this.plugin.settings.lastSessionId;
+    const activeSummary = activeSessionId
+      ? this.sessions.find((session) => session.id === activeSessionId) ?? null
+      : null;
+    const cwd = typeof this.currentSession?.metadata?.path === 'string'
+      ? this.currentSession.metadata.path
+      : (typeof activeSummary?.metadata?.path === 'string' ? activeSummary.metadata.path : null);
+
     const modal = new SessionConfigModal(this, {
       mode: 'create',
       client: this.client,
+      cwd,
       onSuccess: async ({ sessionId }) => {
         if (!sessionId) return;
         await this.setActiveSession(sessionId);
@@ -1529,11 +1548,13 @@ export class ClianMobileView extends ItemView {
     const permissionMode = typeof summary?.permissionMode === 'string' ? summary.permissionMode : null;
     const thinkingMode = typeof summary?.thinkingMode === 'string' ? summary!.thinkingMode : null;
     const name = summary?.metadata?.name ?? null;
+    const cwd = summary?.metadata?.path ?? null;
 
     const modal = new SessionConfigModal(this, {
       mode: 'edit',
       client: this.client,
       sessionId,
+      cwd,
       name,
       flavor,
       model,

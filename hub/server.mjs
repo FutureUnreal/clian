@@ -64,6 +64,121 @@ function parseBoolean(value) {
   return null;
 }
 
+function formatHostForUrl(host) {
+  const value = String(host || '').trim();
+  if (!value) return 'localhost';
+  if (value.includes(':') && !value.startsWith('[')) {
+    return `[${value}]`;
+  }
+  return value;
+}
+
+function isPrivateIpv4(address) {
+  const parts = String(address || '').split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+
+  if (parts[0] === 10) return true;
+  if (parts[0] === 192 && parts[1] === 168) return true;
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  return false;
+}
+
+function getAddressPriority(address) {
+  const normalized = String(address || '').trim();
+  if (normalized.startsWith('192.168.')) return 0;
+  if (normalized.startsWith('10.')) return 1;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)) return 2;
+  return 3;
+}
+
+function getAdapterPriority(interfaceName) {
+  const normalized = String(interfaceName || '').trim().toLowerCase();
+  if (!normalized) return 50;
+
+  const highPriority = ['wlan', 'wi-fi', 'wifi', 'wireless'];
+  if (highPriority.some((keyword) => normalized.includes(keyword))) return 0;
+
+  const mediumPriority = ['ethernet', 'eth', 'lan'];
+  if (mediumPriority.some((keyword) => normalized.includes(keyword))) return 1;
+
+  const lowPriority = [
+    'singbox',
+    'tailscale',
+    'tun',
+    'tap',
+    'vpn',
+    'vethernet',
+    'vmware',
+    'virtualbox',
+    'vbox',
+    'hyper-v',
+    'default switch',
+    'docker',
+    'wsl',
+    'loopback',
+    'bridge',
+  ];
+  if (lowPriority.some((keyword) => normalized.includes(keyword))) return 20;
+
+  return 5;
+}
+
+function getHubDisplayUrls(host, port) {
+  const normalizedHost = String(host || '').trim().toLowerCase();
+  if (normalizedHost && normalizedHost !== '0.0.0.0' && normalizedHost !== '::') {
+    return {
+      directUrl: `http://${formatHostForUrl(host)}:${port}`,
+      localUrl: `http://localhost:${port}`,
+      lanUrls: [],
+    };
+  }
+
+  const seen = new Set();
+  const preferred = [];
+  const fallback = [];
+  const interfaces = os.networkInterfaces();
+
+  for (const [interfaceName, entries] of Object.entries(interfaces)) {
+    for (const entry of entries || []) {
+      const family = typeof entry.family === 'string' ? entry.family : (entry.family === 4 ? 'IPv4' : '');
+      if (family !== 'IPv4' || entry.internal || !entry.address) continue;
+      if (entry.address.startsWith('169.254.')) continue;
+      if (seen.has(entry.address)) continue;
+      seen.add(entry.address);
+
+      const candidate = {
+        address: entry.address,
+        interfaceName,
+        adapterPriority: getAdapterPriority(interfaceName),
+        addressPriority: getAddressPriority(entry.address),
+      };
+
+      if (isPrivateIpv4(entry.address)) {
+        preferred.push(candidate);
+      } else {
+        fallback.push(candidate);
+      }
+    }
+  }
+
+  const sortCandidates = (left, right) => (
+    left.adapterPriority - right.adapterPriority ||
+    left.addressPriority - right.addressPriority ||
+    left.interfaceName.localeCompare(right.interfaceName) ||
+    left.address.localeCompare(right.address)
+  );
+
+  const lanUrls = [...preferred.sort(sortCandidates), ...fallback.sort(sortCandidates)]
+    .map((candidate) => `http://${candidate.address}:${port}`);
+  return {
+    directUrl: lanUrls[0] || `http://localhost:${port}`,
+    localUrl: `http://localhost:${port}`,
+    lanUrls,
+  };
+}
+
 function trimString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -184,6 +299,7 @@ function normalizeHubConfig(rawConfig) {
 
   const claudeCodePath = trimString(rawConfig.claudeCodePath);
   const model = trimString(rawConfig.model);
+  const claudeApprovalMode = trimString(rawConfig.claudeApprovalMode);
 
   const codexCommand = trimString(rawConfig.codexCommand);
   const codexApprovalMode = trimString(rawConfig.codexApprovalMode);
@@ -210,6 +326,7 @@ function normalizeHubConfig(rawConfig) {
     ...(defaultCwd ? { defaultCwd } : {}),
     ...(claudeCodePath ? { claudeCodePath } : {}),
     ...(model ? { model } : {}),
+    ...(claudeApprovalMode ? { claudeApprovalMode } : {}),
     ...(codexCommand ? { codexCommand } : {}),
     ...(codexApprovalMode ? { codexApprovalMode } : {}),
     ...(codexSandbox ? { codexSandbox } : {}),
@@ -420,6 +537,10 @@ const CONFIG = {
     : (FILE_CONFIG.defaultCwd ? path.resolve(FILE_CONFIG.defaultCwd) : process.cwd()),
   claudeCodePath: RESOLVED_CLAUDE_CODE_PATH,
   model: trimString(process.env.CLIAN_HUB_MODEL) || FILE_CONFIG.model || null,
+  claudeApprovalMode:
+    normalizePermissionMode(process.env.CLIAN_HUB_CLAUDE_APPROVAL_MODE) ||
+    normalizePermissionMode(FILE_CONFIG.claudeApprovalMode) ||
+    'yolo',
   codexCommand: (
     trimString(process.env.CLIAN_HUB_CODEX_COMMAND) ||
     trimString(process.env.CODEX_COMMAND) ||
@@ -697,17 +818,45 @@ function dedupeAndSortCommandNames(names, options = {}) {
   return out;
 }
 
-function getCommandNamesForSessionRunner(runner) {
-  if (
-    runner &&
-    runner.flavor === 'claude' &&
-    Array.isArray(runner.supportedSlashCommands) &&
-    runner.supportedSlashCommands.length > 0
-  ) {
-    return dedupeAndSortCommandNames(runner.supportedSlashCommands, { filter: FILTERED_CLAUDE_SDK_COMMANDS });
+function normalizeSupportedSlashCommands(names) {
+  return dedupeAndSortCommandNames(names, { filter: FILTERED_CLAUDE_SDK_COMMANDS });
+}
+
+function areStringArraysEqual(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right)) return false;
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    if (left[i] !== right[i]) return false;
+  }
+  return true;
+}
+
+function getCachedClaudeCommandNames(excludeRunner = null) {
+  for (const nsMap of sessionsByNamespace.values()) {
+    for (const runner of nsMap.values()) {
+      if (!runner || runner === excludeRunner || runner.flavor !== 'claude') continue;
+      const cached = normalizeSupportedSlashCommands(runner.supportedSlashCommands);
+      if (cached.length > 0) {
+        return cached;
+      }
+    }
   }
 
-  return listCommandNamesForCwd(runner?.cwd || '');
+  return [];
+}
+
+function getCommandNamesForSessionRunner(runner) {
+  const fromCwd = listCommandNamesForCwd(runner?.cwd || '');
+  let fromSdk = [];
+
+  if (runner?.flavor === 'claude') {
+    fromSdk = normalizeSupportedSlashCommands(runner.supportedSlashCommands);
+    if (fromSdk.length === 0) {
+      fromSdk = getCachedClaudeCommandNames(runner);
+    }
+  }
+
+  return dedupeAndSortCommandNames([...fromSdk, ...fromCwd]);
 }
 
 function findVaultRootFromCwd(cwd) {
@@ -738,6 +887,57 @@ function findVaultRootFromCwd(cwd) {
   }
 
   return current;
+}
+
+function hasWorkspaceMarkers(dirPath) {
+  const dir = trimString(dirPath);
+  if (!dir) return false;
+  try {
+    return fs.existsSync(path.join(dir, '.clian')) || fs.existsSync(path.join(dir, '.obsidian'));
+  } catch {
+    return false;
+  }
+}
+
+function isWorkspaceCwd(cwd) {
+  const resolved = trimString(cwd);
+  if (!resolved) return false;
+  return hasWorkspaceMarkers(findVaultRootFromCwd(resolved));
+}
+
+function getPreferredSessionCwd(nsMap, requestedCwd = '') {
+  const requested = trimString(requestedCwd);
+  if (requested && isWorkspaceCwd(requested)) {
+    return requested;
+  }
+
+  const runners = Array.from(nsMap.values())
+    .filter((runner) => runner && typeof runner.cwd === 'string' && runner.cwd.trim())
+    .sort((left, right) => (right.updatedAt || 0) - (left.updatedAt || 0));
+
+  for (const runner of runners) {
+    if (isWorkspaceCwd(runner.cwd)) {
+      return runner.cwd;
+    }
+  }
+
+  return requested || '';
+}
+
+function repairRunnerCwdIfNeeded(nsMap, runner) {
+  if (!runner || isWorkspaceCwd(runner.cwd)) {
+    return false;
+  }
+
+  const preferredCwd = getPreferredSessionCwd(nsMap, '');
+  if (!preferredCwd || preferredCwd === runner.cwd) {
+    return false;
+  }
+
+  runner.cwd = preferredCwd;
+  runner.updatedAt = Date.now();
+  persistSessionsFromMemory();
+  return true;
 }
 
 function listCommandNamesFromDir(dirPath) {
@@ -923,6 +1123,10 @@ function normalizePermissionMode(permissionMode) {
   if (raw === 'plan') return 'plan';
   if (raw === 'normal' || raw === 'safe' || raw === 'acceptedits' || raw === 'default') return 'normal';
   return null;
+}
+
+function resolveClaudeApprovalMode(permissionMode, fallbackMode) {
+  return normalizePermissionMode(permissionMode) || normalizePermissionMode(fallbackMode) || 'yolo';
 }
 
 function buildCodexPermissionArgs(permissionMode, explicitSandbox) {
@@ -1736,7 +1940,7 @@ class SessionRunner {
       : null;
     this.permissionMode = normalizePermissionMode(options.permissionMode);
 
-    this.supportedSlashCommands = [];
+    this.supportedSlashCommands = normalizeSupportedSlashCommands(options.supportedSlashCommands);
 
     this.createdAt = options.createdAt || Date.now();
     this.updatedAt = options.updatedAt || Date.now();
@@ -2331,6 +2535,7 @@ class SessionRunner {
 
       let lastSessionId = session.resumeToken;
       let resultText = '';
+      let sessionStateChanged = false;
 
       const pendingOps = [];
       const announcedToolUseIds = new Set();
@@ -2473,6 +2678,10 @@ class SessionRunner {
       const canUseTool = async (toolName, input, toolOptions) => {
         const requestId = toolOptions.toolUseID || randomUUID();
 
+        if (resolveClaudeApprovalMode(session.permissionMode, CONFIG.claudeApprovalMode) === 'yolo') {
+          return { behavior: 'allow', updatedInput: input, toolUseID: toolOptions.toolUseID };
+        }
+
         releaseToolUseNow(requestId);
 
         const decisionPromise = session.waitForDecision(requestId, toolOptions.signal);
@@ -2570,9 +2779,10 @@ class SessionRunner {
 
           if (msg && msg.type === 'system' && msg.subtype === 'init') {
             const raw = Array.isArray(msg.slash_commands) ? msg.slash_commands : [];
-            const filtered = dedupeAndSortCommandNames(raw, { filter: FILTERED_CLAUDE_SDK_COMMANDS });
-            if (filtered.length > 0) {
+            const filtered = normalizeSupportedSlashCommands(raw);
+            if (!areStringArraysEqual(filtered, session.supportedSlashCommands)) {
               session.supportedSlashCommands = filtered;
+              sessionStateChanged = true;
             }
           }
 
@@ -2727,6 +2937,11 @@ class SessionRunner {
 
       if (lastSessionId && lastSessionId !== session.resumeToken) {
         session.resumeToken = lastSessionId;
+        sessionStateChanged = true;
+      }
+
+      if (sessionStateChanged) {
+        persistSessionsFromMemory();
       }
 
       const blocks = buildMergedBlocks();
@@ -3092,6 +3307,7 @@ function loadSessionsIntoMemory() {
         model: s.model || null,
         permissionMode: s.permissionMode || null,
         thinkingMode: s.thinkingMode || null,
+        supportedSlashCommands: s.supportedSlashCommands,
         createdAt: s.createdAt || Date.now(),
         updatedAt: s.updatedAt || Date.now(),
         resumeToken: s.resumeToken || s.resumeId || null,
@@ -3114,6 +3330,7 @@ function persistSessionsFromMemory() {
         model: runner.model,
         permissionMode: runner.permissionMode,
         thinkingMode: runner.thinkingMode,
+        supportedSlashCommands: normalizeSupportedSlashCommands(runner.supportedSlashCommands),
         createdAt: runner.createdAt,
         updatedAt: runner.updatedAt,
         resumeToken: runner.resumeToken,
@@ -3339,7 +3556,9 @@ const server = http.createServer(async (req, res) => {
     const bodyText = await readRequestBody(req);
     const body = safeJsonParse(bodyText) || {};
     const id = typeof body.id === 'string' && body.id.trim() ? body.id.trim() : `session-${randomUUID()}`;
-    const cwd = typeof body.cwd === 'string' && body.cwd.trim() ? path.resolve(body.cwd.trim()) : CONFIG.defaultCwd;
+    const requestedCwd = typeof body.cwd === 'string' && body.cwd.trim() ? path.resolve(body.cwd.trim()) : '';
+    const preferredCwd = getPreferredSessionCwd(nsMap, requestedCwd);
+    const cwd = preferredCwd || requestedCwd || CONFIG.defaultCwd;
     const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : null;
     const flavor = typeof body.flavor === 'string' ? body.flavor.trim() : 'claude';
     const model = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : null;
@@ -3351,7 +3570,7 @@ const server = http.createServer(async (req, res) => {
 
     if (CONFIG.debug) {
       // eslint-disable-next-line no-console
-      console.log(`[Session Create] ID: ${id}, Flavor: ${flavor}, Model: ${model || 'default'}, CWD: ${cwd}`);
+      console.log(`[Session Create] ID: ${id}, Flavor: ${flavor}, Model: ${model || 'default'}, Requested CWD: ${requestedCwd || '<none>'}, Effective CWD: ${cwd}`);
     }
 
     if (!isAllowedFlavor(flavor)) {
@@ -3390,6 +3609,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    repairRunnerCwdIfNeeded(nsMap, runner);
     const commands = getCommandNamesForSessionRunner(runner);
     sendJson(res, 200, { commands });
     return;
@@ -3473,6 +3693,7 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 404, { error: 'Session not found' });
       return;
     }
+    repairRunnerCwdIfNeeded(nsMap, runner);
     sendJson(res, 200, { session: runner.toSessionDetail() });
     return;
   }
@@ -3499,6 +3720,8 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 404, { error: 'Session not found' });
       return;
     }
+
+    repairRunnerCwdIfNeeded(nsMap, runner);
 
     if (req.method === 'GET') {
       const loaded = loadClianMcpConfigFromCwd(runner.cwd);
@@ -3708,6 +3931,10 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === 'POST') {
+      repairRunnerCwdIfNeeded(nsMap, runner);
+    }
+
     if (req.method === 'GET') {
       const limit = url.searchParams.get('limit');
       const beforeSeq = url.searchParams.get('beforeSeq');
@@ -3807,7 +4034,7 @@ server.listen(CONFIG.port, CONFIG.host, () => {
   // eslint-disable-next-line no-console
   console.log('='.repeat(60));
   // eslint-disable-next-line no-console
-  console.log(`Server: http://${CONFIG.host}:${CONFIG.port}`);
+  console.log(`Server: http://${formatHostForUrl(CONFIG.host)}:${CONFIG.port}`);
   // eslint-disable-next-line no-console
   console.log(`Data directory: ${CONFIG.dataDir}`);
   // eslint-disable-next-line no-console
@@ -3828,10 +4055,25 @@ server.listen(CONFIG.port, CONFIG.host, () => {
   console.log('');
   // eslint-disable-next-line no-console
   console.log('Mobile app configuration:');
+  const displayUrls = getHubDisplayUrls(CONFIG.host, CONFIG.port)
   // eslint-disable-next-line no-console
-  console.log(`  Hub URL: http://${CONFIG.host === '0.0.0.0' ? '<your-ip>' : CONFIG.host}:${CONFIG.port}`);
+  console.log(`  Hub URL: ${displayUrls.directUrl}`);
+  if (displayUrls.lanUrls.length > 1) {
+    // eslint-disable-next-line no-console
+    console.log('  Other LAN URLs:');
+    for (const lanUrl of displayUrls.lanUrls.slice(1)) {
+      // eslint-disable-next-line no-console
+      console.log(`    - ${lanUrl}`);
+    }
+  }
+  if (displayUrls.lanUrls.length === 0 && CONFIG.host !== '127.0.0.1' && CONFIG.host !== 'localhost') {
+    // eslint-disable-next-line no-console
+    console.log(`  Local only: ${displayUrls.localUrl}`);
+  }
   // eslint-disable-next-line no-console
-  console.log(`  Access Token: ${CONFIG.baseToken.substring(0, 8)}...`);
+  console.log(`  Access Token: ${CONFIG.baseToken}`);
+  // eslint-disable-next-line no-console
+  console.log('  Keep this token private.');
   // eslint-disable-next-line no-console
   console.log('');
   if (CONFIG.debug) {

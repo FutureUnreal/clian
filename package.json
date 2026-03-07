@@ -1,6 +1,6 @@
 {
   "name": "clian",
-  "version": "1.3.68",
+  "version": "1.3.69",
   "description": "Clian - Claude/Codex/Gemini embedded in Obsidian sidebar",
   "main": "dist/main.js",
   "scripts": {
