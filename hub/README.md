@@ -58,7 +58,8 @@ Supported session flavors:
     - Set to `project` to disable loading user settings.
 - Optional (Codex):
   - `CLIAN_HUB_CODEX_COMMAND` (default: `codex`)
-  - `CLIAN_HUB_CODEX_SANDBOX` (passed to `--sandbox`, e.g. `read-only` or `workspace-write`)
+  - `CLIAN_HUB_CODEX_APPROVAL_MODE` (default: `yolo`; `yolo` maps to Codex full access, non-`yolo` maps to `--ask-for-approval on-request`)
+  - `CLIAN_HUB_CODEX_SANDBOX` (used for non-`yolo` Codex sessions via `--sandbox`, e.g. `read-only` or `workspace-write`)
 - Optional (Gemini):
   - `CLIAN_HUB_GEMINI_COMMAND` (default: `gemini`)
   - `CLIAN_HUB_GEMINI_APPROVAL_MODE` (default: `yolo`)

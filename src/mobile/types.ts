@@ -47,6 +47,7 @@ export type RemoteSessionSummary = {
   } | null;
   todoProgress: { completed: number; total: number } | null;
   pendingRequestsCount: number;
+  permissionMode?: string;
   modelMode?: string;
   thinkingMode?: string;
 };
@@ -59,6 +60,7 @@ export type RemoteCreateSessionBody = {
   name?: string;
   flavor?: 'claude' | 'codex' | 'gemini' | string;
   model?: string;
+  permissionMode?: string;
   thinkingMode?: string;
   resumeToken?: string;
 };
@@ -71,6 +73,7 @@ export type RemoteCreateSessionResponse = {
 export type RemoteUpdateSessionBody = {
   name?: string;
   model?: string;
+  permissionMode?: string;
   thinkingMode?: string;
 };
 
@@ -96,6 +99,7 @@ export type RemoteSession = {
   agentState: RemoteAgentState;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata: any;
+  permissionMode?: string;
   modelMode?: string;
   thinkingMode?: string;
 };

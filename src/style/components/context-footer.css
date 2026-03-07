@@ -19,11 +19,14 @@
   margin-bottom: 6px;
   padding: 4px 8px;
   font-size: 11px;
+  line-height: 1.4;
   color: var(--text-normal);
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
-  white-space: nowrap;
+  max-width: 320px;
+  text-align: left;
+  white-space: pre-line;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.15s ease, visibility 0.15s ease;
@@ -64,6 +67,12 @@
   min-width: 24px;
   text-align: end;
   transition: color 0.3s ease;
+}
+
+.clian-context-meter-summary {
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 24px;
 }
 
 /* Warning state (> 80%) - pale red */

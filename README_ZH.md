@@ -312,7 +312,8 @@ npm run hub
 | 变量 | 配置键 | 默认值 | 说明 |
 |------|--------|--------|------|
 | `CLIAN_HUB_CODEX_COMMAND` | `codexCommand` | `codex` | Codex CLI 命令 |
-| `CLIAN_HUB_CODEX_SANDBOX` | `codexSandbox` | — | 沙箱模式（`read-only`、`workspace-write`） |
+| `CLIAN_HUB_CODEX_APPROVAL_MODE` | `codexApprovalMode` | `yolo` | 权限模式；`yolo` 对应 Codex Full Access，非 `yolo` 使用 `on-request` |
+| `CLIAN_HUB_CODEX_SANDBOX` | `codexSandbox` | — | 非 `yolo` 时的沙箱模式（`read-only`、`workspace-write`） |
 
 **Gemini 专属：**
 | 变量 | 配置键 | 默认值 | 说明 |
@@ -434,4 +435,3 @@ hub/                             # 远程 Hub 服务器（用于移动端）
 - [Claudian](https://github.com/YishenTu/claudian) —— 本项目基于其进行二次开发
 - [Obsidian](https://obsidian.md) 提供了插件 API
 - [Anthropic](https://anthropic.com) 提供了 Claude 和 [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview)
-

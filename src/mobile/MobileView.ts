@@ -102,8 +102,17 @@ function readFileAsDataUrl(file: File): Promise<string> {
 function truncateText(value: string, maxLen: number): string {
   const text = String(value || '');
   if (text.length <= maxLen) return text;
-  if (maxLen <= 1) return '…';
-  return `${text.slice(0, maxLen - 1)}…`;
+  if (maxLen <= 3) return '...';
+  return `${text.slice(0, maxLen - 3)}...`;
+}
+
+function formatSessionPermissionTag(permissionMode: string | undefined): string {
+  const raw = typeof permissionMode === 'string' ? permissionMode.trim().toLowerCase() : '';
+  if (!raw) return '';
+  if (raw === 'yolo') return ' [YOLO]';
+  if (raw === 'plan') return ' [Plan]';
+  if (raw === 'normal') return ' [Safe]';
+  return ` [${permissionMode}]`;
 }
 
 function formatSessionLabel(session: RemoteSessionSummary): string {
@@ -120,8 +129,9 @@ function formatSessionLabel(session: RemoteSessionSummary): string {
   const flavorRaw = session.metadata?.flavor ?? null;
   const flavor = typeof flavorRaw === 'string' ? flavorRaw.trim() : '';
   const flavorTag = flavor ? ` [${flavor}]` : '';
-  const thinking = session.thinking ? ' • thinking' : '';
-  return `${base}${flavorTag}${thinking}`;
+  const permissionTag = formatSessionPermissionTag(session.permissionMode);
+  const thinking = session.thinking ? ' · thinking' : '';
+  return `${base}${flavorTag}${permissionTag}${thinking}`;
 }
 
 function sortMessages(messages: RemoteDecryptedMessage[]): RemoteDecryptedMessage[] {
@@ -134,6 +144,7 @@ function sortMessages(messages: RemoteDecryptedMessage[]): RemoteDecryptedMessag
 }
 
 type SessionFlavor = 'claude' | 'codex' | 'gemini';
+type SessionPermissionMode = '' | 'normal' | 'plan' | 'yolo';
 
 function normalizeFlavor(value: unknown): SessionFlavor {
   const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -142,7 +153,38 @@ function normalizeFlavor(value: unknown): SessionFlavor {
   return 'claude';
 }
 
+function normalizeSessionPermissionMode(value: unknown): SessionPermissionMode {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (raw === 'yolo' || raw === 'bypasspermissions' || raw === 'dontask') return 'yolo';
+  if (raw === 'plan') return 'plan';
+  if (raw === 'normal' || raw === 'safe' || raw === 'default' || raw === 'acceptedits') {
+    return 'normal';
+  }
+  return '';
+}
+
 const CUSTOM_MODEL_VALUE = '__custom__';
+
+function getPermissionOptionsForFlavor(flavor: SessionFlavor): { value: SessionPermissionMode; label: string }[] {
+  if (flavor === 'claude') {
+    return [];
+  }
+
+  if (flavor === 'codex') {
+    return [
+      { value: '', label: 'Server default' },
+      { value: 'normal', label: 'Safe' },
+      { value: 'yolo', label: 'YOLO' },
+    ];
+  }
+
+  return [
+    { value: '', label: 'Server default' },
+    { value: 'normal', label: 'Safe' },
+    { value: 'plan', label: 'Plan' },
+    { value: 'yolo', label: 'YOLO' },
+  ];
+}
 
 function getModelOptionsForFlavor(flavor: SessionFlavor): { value: string; label: string }[] {
   if (flavor === 'claude') {
@@ -213,7 +255,7 @@ class ConfirmSessionDeleteModal extends Modal {
     const setBusy = (busy: boolean) => {
       cancelBtn.disabled = busy;
       deleteBtn.disabled = busy;
-      deleteBtn.textContent = busy ? 'Deleting…' : 'Delete';
+      deleteBtn.textContent = busy ? 'Deleting...' : 'Delete';
     };
 
     deleteBtn.addEventListener('click', async () => {
@@ -240,6 +282,7 @@ class SessionConfigModal extends Modal {
   private initialName: string;
   private initialFlavor: SessionFlavor;
   private initialModel: string;
+  private initialPermissionMode: SessionPermissionMode;
   private initialThinkingMode: string;
 
   constructor(
@@ -251,6 +294,7 @@ class SessionConfigModal extends Modal {
       name?: string | null;
       flavor?: string | null;
       model?: string | null;
+      permissionMode?: string | null;
       thinkingMode?: string | null;
       onSuccess: (result: { sessionId?: string }) => Promise<void>;
       onDeleted?: (sessionId: string) => Promise<void>;
@@ -265,6 +309,7 @@ class SessionConfigModal extends Modal {
     this.initialName = (options.name ?? '').trim();
     this.initialFlavor = normalizeFlavor(options.flavor);
     this.initialModel = (options.model ?? '').trim();
+    this.initialPermissionMode = normalizeSessionPermissionMode(options.permissionMode);
     this.initialThinkingMode = (options.thinkingMode ?? '').trim();
   }
 
@@ -279,6 +324,7 @@ class SessionConfigModal extends Modal {
     let flavorValue = this.initialFlavor;
     let modelPresetValue = '';
     let customModelValue = '';
+    let permissionValue = this.initialPermissionMode;
     let thinkingValue = this.initialThinkingMode;
 
     const presetValues = new Set(getModelOptionsForFlavor(flavorValue).map((o) => o.value));
@@ -316,6 +362,7 @@ class SessionConfigModal extends Modal {
         .onChange((value) => {
           flavorValue = normalizeFlavor(value);
           rebuildModelOptions();
+          rebuildPermissionOptions();
           rebuildThinkingOptions();
         });
     });
@@ -359,6 +406,19 @@ class SessionConfigModal extends Modal {
       });
     });
 
+    const permissionSetting = new Setting(contentEl)
+      .setName('Permission mode')
+      .setDesc('Per-session override for Codex/Gemini. Leave as Server default to use hub defaults.');
+
+    let permissionDropdownEl: HTMLSelectElement | null = null;
+
+    permissionSetting.addDropdown((dropdown) => {
+      permissionDropdownEl = dropdown.selectEl;
+      dropdown.onChange((value) => {
+        permissionValue = normalizeSessionPermissionMode(value);
+      });
+    });
+
     const rebuildModelOptions = () => {
       if (!modelDropdownEl) return;
 
@@ -369,7 +429,7 @@ class SessionConfigModal extends Modal {
       for (const opt of options) {
         modelDropdownEl.createEl('option', { value: opt.value, text: opt.label });
       }
-      modelDropdownEl.createEl('option', { value: CUSTOM_MODEL_VALUE, text: 'Custom…' });
+      modelDropdownEl.createEl('option', { value: CUSTOM_MODEL_VALUE, text: 'Custom...' });
 
       if (modelPresetValue === CUSTOM_MODEL_VALUE) {
         modelDropdownEl.value = CUSTOM_MODEL_VALUE;
@@ -402,11 +462,38 @@ class SessionConfigModal extends Modal {
       }
     };
 
+    const rebuildPermissionOptions = () => {
+      if (!permissionDropdownEl) return;
+
+      const options = getPermissionOptionsForFlavor(flavorValue);
+      const allowed = new Set(options.map((o) => o.value));
+
+      permissionDropdownEl.empty();
+      for (const opt of options) {
+        permissionDropdownEl.createEl('option', { value: opt.value, text: opt.label });
+      }
+
+      permissionSetting.settingEl.style.display = options.length > 0 ? 'block' : 'none';
+
+      if (!options.length) {
+        permissionValue = '';
+        return;
+      }
+
+      if (allowed.has(permissionValue)) {
+        permissionDropdownEl.value = permissionValue;
+      } else {
+        permissionValue = '';
+        permissionDropdownEl.value = '';
+      }
+    };
+
     const updateCustomVisibility = () => {
       customModelSetting.settingEl.style.display = modelPresetValue === CUSTOM_MODEL_VALUE ? 'block' : 'none';
     };
 
     rebuildModelOptions();
+    rebuildPermissionOptions();
     rebuildThinkingOptions();
 
     if (this.mode === 'edit' && this.sessionId && this.onDeleted) {
@@ -449,7 +536,7 @@ class SessionConfigModal extends Modal {
     const setBusy = (busy: boolean) => {
       cancelButton.disabled = busy;
       submitButton.disabled = busy;
-      submitButton.textContent = busy ? `${submitText}…` : submitText;
+      submitButton.textContent = busy ? `${submitText}...` : submitText;
     };
 
     submitButton.addEventListener('click', async () => {
@@ -468,6 +555,7 @@ class SessionConfigModal extends Modal {
             name: name ? name : undefined,
             flavor: flavorValue,
             model: model ? model : undefined,
+            permissionMode: flavorValue === 'claude' || !permissionValue ? undefined : permissionValue,
             thinkingMode: thinkingMode ? thinkingMode : undefined,
           });
           await this.onSuccess({ sessionId: resp.sessionId });
@@ -485,6 +573,7 @@ class SessionConfigModal extends Modal {
             name: name ? name : undefined,
             flavor: flavorValue,
             model: model ? model : undefined,
+            permissionMode: flavorValue === 'claude' || !permissionValue ? undefined : permissionValue,
             thinkingMode: thinkingMode ? thinkingMode : undefined,
           });
           await this.onSuccess({ sessionId: resp.sessionId });
@@ -492,6 +581,7 @@ class SessionConfigModal extends Modal {
           await this.client.updateSession(this.sessionId, {
             name,
             model,
+            permissionMode: flavorValue === 'claude' || !permissionValue ? undefined : permissionValue,
             thinkingMode,
           });
           await this.onSuccess({});
@@ -539,7 +629,7 @@ class CommandPickerModal extends Modal {
 
     const search = contentEl.createEl('input');
     search.type = 'text';
-    search.placeholder = 'Search…';
+    search.placeholder = 'Search...';
     search.style.width = '100%';
     search.style.margin = '8px 0';
     search.addEventListener('input', () => {
@@ -562,7 +652,7 @@ class CommandPickerModal extends Modal {
 
     const load = async () => {
       try {
-        setLoading('Loading…');
+        setLoading('Loading...');
         const data = await this.client.getCommands(this.sessionId);
         this.commands = Array.isArray(data.commands) ? data.commands.filter((c) => typeof c === 'string') : [];
         this.commands.sort((a, b) => a.localeCompare(b));
@@ -667,7 +757,7 @@ class McpServersModal extends Modal {
     const setBusy = (busy: boolean) => {
       cancelBtn.disabled = busy;
       saveBtn.disabled = busy || !this.exists || this.servers.length === 0;
-      saveBtn.textContent = busy ? 'Saving…' : 'Save';
+      saveBtn.textContent = busy ? 'Saving...' : 'Save';
     };
 
     const setLoading = (text: string) => {
@@ -721,7 +811,7 @@ class McpServersModal extends Modal {
         const details: string[] = [];
         if (server.type) details.push(server.type);
         details.push(server.contextSaving ? '@mention' : 'always');
-        const detailLine = meta.createDiv({ text: details.join(' • ') });
+        const detailLine = meta.createDiv({ text: details.join(' · ') });
         detailLine.style.fontSize = '12px';
         detailLine.style.color = 'var(--text-muted)';
 
@@ -737,7 +827,7 @@ class McpServersModal extends Modal {
 
     const load = async () => {
       try {
-        setLoading('Loading…');
+        setLoading('Loading...');
         const data = await this.client.getMcpServers(this.sessionId);
         this.exists = !!data.exists;
         this.servers = Array.isArray(data.servers) ? data.servers : [];
@@ -817,7 +907,7 @@ class UploadFileModal extends Modal {
     deviceRow.style.alignItems = 'center';
     deviceRow.style.marginTop = '8px';
 
-    const deviceBtn = deviceRow.createEl('button', { text: 'Choose from device…' });
+    const deviceBtn = deviceRow.createEl('button', { text: 'Choose from device...' });
     deviceBtn.addClass('clian-mobile-button', 'clian-mobile-tappable', 'clian-mobile-device-file-button');
 
     const deviceInput = deviceRow.createEl('input');
@@ -1345,7 +1435,7 @@ export class ClianMobileView extends ItemView {
     const generation = ++this.eventSourceGeneration;
 
     this.sseConnected = false;
-    this.setStatus('Connecting (SSE)…');
+    this.setStatus('Connecting (SSE)...');
 
     let es: EventSource;
     try {
@@ -1436,6 +1526,7 @@ export class ClianMobileView extends ItemView {
     const flavorRaw = summary?.metadata?.flavor ?? null;
     const flavor = typeof flavorRaw === 'string' ? flavorRaw.trim() : null;
     const model = typeof summary?.modelMode === 'string' ? summary!.modelMode : null;
+    const permissionMode = typeof summary?.permissionMode === 'string' ? summary.permissionMode : null;
     const thinkingMode = typeof summary?.thinkingMode === 'string' ? summary!.thinkingMode : null;
     const name = summary?.metadata?.name ?? null;
 
@@ -1446,6 +1537,7 @@ export class ClianMobileView extends ItemView {
       name,
       flavor,
       model,
+      permissionMode,
       thinkingMode,
       onSuccess: async ({ sessionId: nextSessionId }) => {
         if (nextSessionId) {
@@ -1468,7 +1560,7 @@ export class ClianMobileView extends ItemView {
     this.sessionsSelectEl.empty();
 
     const placeholder = this.sessionsSelectEl.createEl('option', {
-      text: this.sessions.length ? 'Select a session…' : 'No sessions',
+      text: this.sessions.length ? 'Select a session...' : 'No sessions',
       value: '',
     });
     placeholder.disabled = true;
@@ -2307,7 +2399,7 @@ export class ClianMobileView extends ItemView {
 
     const prevText = this.stopButtonEl.textContent || 'Stop';
     this.stopButtonEl.disabled = true;
-    this.stopButtonEl.textContent = 'Stopping…';
+    this.stopButtonEl.textContent = 'Stopping...';
 
     try {
       const resp = await this.client.interruptSession(sessionId);

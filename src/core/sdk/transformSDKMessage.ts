@@ -83,9 +83,11 @@ export function* transformSDKMessage(
       if (parentToolUseId === null && apiMessage?.usage) {
         const usage = apiMessage.usage;
         const inputTokens = usage.input_tokens ?? 0;
+        const outputTokens = usage.output_tokens ?? 0;
         const cacheCreationInputTokens = usage.cache_creation_input_tokens ?? 0;
         const cacheReadInputTokens = usage.cache_read_input_tokens ?? 0;
         const contextTokens = inputTokens + cacheCreationInputTokens + cacheReadInputTokens;
+        const totalTokens = contextTokens + outputTokens;
 
         const model = options?.intendedModel ?? 'sonnet';
         const contextWindow = getContextWindowSize(model, options?.is1MEnabled ?? false, options?.customContextLimits);
@@ -96,6 +98,8 @@ export function* transformSDKMessage(
           inputTokens,
           cacheCreationInputTokens,
           cacheReadInputTokens,
+          outputTokens,
+          totalTokens,
           contextWindow,
           contextTokens,
           percentage,

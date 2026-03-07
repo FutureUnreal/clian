@@ -157,10 +157,6 @@ export class StreamController {
         ) {
           break;
         }
-        // Skip usage updates when subagents ran (SDK reports cumulative usage including subagents)
-        if (this.deps.subagentManager.subagentsSpawnedThisStream > 0) {
-          break;
-        }
         if (!state.ignoreUsageUpdates) {
           state.usage = chunk.usage;
         }

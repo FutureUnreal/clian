@@ -769,7 +769,7 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('Usage handling - edge cases', () => {
-    it('should skip usage when subagentsSpawnedThisStream > 0', async () => {
+    it('should still update usage when subagentsSpawnedThisStream > 0', async () => {
       const msg = createTestMessage();
       (deps.subagentManager as any).subagentsSpawnedThisStream = 1;
 
@@ -777,7 +777,7 @@ describe('StreamController - Text Content', () => {
 
       await controller.handleStreamChunk({ type: 'usage', usage, sessionId: 'session-1' }, msg);
 
-      expect(deps.state.usage).toBeNull();
+      expect(deps.state.usage).toEqual(usage);
     });
 
     it('should skip usage when chunk has sessionId but currentSessionId is null', async () => {

@@ -104,11 +104,16 @@ export const DEFAULT_CODEX_CONTEXT_WINDOW = 272_000;
 
 const CODEX_CONTEXT_WINDOWS: Record<string, number> = {
   'gpt-5.3-codex': 272_000,
+  'gpt-5.4': 272_000,
   'gpt-5.2-codex': 272_000,
+  'gpt-5.1': 272_000,
   'gpt-5.1-codex-max': 272_000,
   'gpt-5.1-codex': 272_000,
   'gpt-5.1-codex-mini': 272_000,
   'gpt-5.2': 272_000,
+  'gpt-5': 272_000,
+  'gpt-oss-120b': 128_000,
+  'gpt-oss-20b': 128_000,
 };
 
 export function getCodexContextWindowSize(model: string, customLimits?: Record<string, number>): number {

@@ -11,6 +11,7 @@
   "model": "",
   "claudeSettingSources": ["user", "project"],
   "codexCommand": "codex",
+  "codexApprovalMode": "yolo",
   "codexSandbox": "",
   "geminiCommand": "gemini",
   "geminiApprovalMode": "yolo",

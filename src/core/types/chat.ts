@@ -195,12 +195,14 @@ export type StreamChunk =
   | { type: 'sdk_user_sent'; uuid: string }
   | { type: 'sdk_assistant_uuid'; uuid: string };
 
-/** Context window usage information. */
+/** Context window and per-turn token usage information. */
 export interface UsageInfo {
   model?: string;
   inputTokens: number;
   cacheCreationInputTokens: number;
   cacheReadInputTokens: number;
+  outputTokens?: number;
+  totalTokens?: number;
   contextWindow: number;
   contextTokens: number;
   percentage: number;

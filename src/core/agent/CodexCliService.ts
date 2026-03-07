@@ -8,7 +8,17 @@ import { getEnhancedPath, parseEnvironmentVariables } from '../../utils/env';
 import { parseCommand } from '../../utils/mcp';
 import { getVaultPath } from '../../utils/path';
 import { resolveWindowsShim } from '../../utils/windowsCli';
-import { type ChatMessage, type Conversation, getCodexContextWindowSize, getHostnameKey, type ImageAttachment, normalizeCodexReasoningEffort, type SlashCommand, type StreamChunk } from '../types';
+import {
+  type ChatMessage,
+  type Conversation,
+  getCodexContextWindowSize,
+  getHostnameKey,
+  type ImageAttachment,
+  normalizeCodexReasoningEffort,
+  type SlashCommand,
+  type StreamChunk,
+  type UsageInfo,
+} from '../types';
 import type { AskUserQuestionCallback, ChatService, EnsureReadyOptionsLike } from './ChatService';
 import type { ApprovalCallback, QueryOptions } from './ClianService';
 
@@ -29,6 +39,44 @@ function normalizeDelta(previous: string, next: string): string {
   if (!previous) return next;
   if (next.startsWith(previous)) return next.slice(previous.length);
   return next;
+}
+
+export function buildCodexPermissionArgs(permissionMode: string, explicitSandbox: string): string[] {
+  if (permissionMode === 'yolo') {
+    return ['--dangerously-bypass-approvals-and-sandbox'];
+  }
+
+  return ['--ask-for-approval', 'on-request', '--sandbox', explicitSandbox || 'workspace-write'];
+}
+
+export function buildCodexUsageInfo(
+  usage: Record<string, unknown>,
+  model: string,
+  customContextLimits?: Record<string, number>,
+): UsageInfo {
+  const inputTokensTotal = typeof usage.input_tokens === 'number' ? usage.input_tokens : 0;
+  const cachedInputTokens = typeof usage.cached_input_tokens === 'number' ? usage.cached_input_tokens : 0;
+  const outputTokens = typeof usage.output_tokens === 'number' ? usage.output_tokens : 0;
+  const nonCachedInputTokens = Math.max(0, inputTokensTotal - cachedInputTokens);
+  const contextTokens =
+    typeof usage.total_tokens === 'number' && usage.total_tokens > 0
+      ? usage.total_tokens
+      : inputTokensTotal;
+  const totalTokens = inputTokensTotal + Math.max(0, outputTokens);
+  const contextWindow = getCodexContextWindowSize(model, customContextLimits);
+  const percentage = Math.min(100, Math.max(0, Math.round((contextTokens / contextWindow) * 100)));
+
+  return {
+    model: model || undefined,
+    inputTokens: nonCachedInputTokens,
+    cacheCreationInputTokens: 0,
+    cacheReadInputTokens: cachedInputTokens,
+    outputTokens,
+    totalTokens,
+    contextWindow,
+    contextTokens,
+    percentage,
+  };
 }
 
 export class CodexCliService implements ChatService {
@@ -187,9 +235,7 @@ export class CodexCliService implements ChatService {
     const args: string[] = ['exec', '--json', '--skip-git-repo-check', '-C', vaultPath];
 
     const sandbox = typeof customEnv.CODEX_SANDBOX === 'string' ? customEnv.CODEX_SANDBOX.trim() : '';
-    if (sandbox) {
-      args.push('--sandbox', sandbox);
-    }
+    args.push(...buildCodexPermissionArgs(this.plugin.settings.permissionMode, sandbox));
 
     const modelFromSettings = typeof this.plugin.settings.codexModel === 'string'
       ? this.plugin.settings.codexModel.trim()
@@ -321,26 +367,10 @@ export class CodexCliService implements ChatService {
         }
 
         if (type === 'turn.completed' && isRecord(evt.usage)) {
-          const usage = evt.usage as Record<string, unknown>;
-          const inputTokens = typeof usage.input_tokens === 'number' ? usage.input_tokens : 0;
-          const cachedInputTokens = typeof usage.cached_input_tokens === 'number' ? usage.cached_input_tokens : 0;
-          const contextTokens = inputTokens + cachedInputTokens;
-
-          const contextWindow = getCodexContextWindowSize(model, this.plugin.settings.customContextLimits);
-          const percentage = Math.min(100, Math.max(0, Math.round((contextTokens / contextWindow) * 100)));
-
           yield {
             type: 'usage',
             sessionId: this.sessionId,
-            usage: {
-              model: model || undefined,
-              inputTokens,
-              cacheCreationInputTokens: 0,
-              cacheReadInputTokens: cachedInputTokens,
-              contextWindow,
-              contextTokens,
-              percentage,
-            },
+            usage: buildCodexUsageInfo(evt.usage as Record<string, unknown>, model, this.plugin.settings.customContextLimits),
           };
           continue;
         }

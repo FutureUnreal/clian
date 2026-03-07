@@ -20,6 +20,8 @@ function makeUsage(overrides: Partial<UsageInfo> = {}): UsageInfo {
     inputTokens: 0,
     cacheCreationInputTokens: 0,
     cacheReadInputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
     contextWindow: 200000,
     contextTokens: 0,
     percentage: 0,
@@ -540,27 +542,56 @@ describe('ContextUsageMeter', () => {
   });
 
   it('should set tooltip with formatted token counts', () => {
-    meter.update(makeUsage({ contextTokens: 50000, contextWindow: 200000, percentage: 25 }));
+    meter.update(makeUsage({ inputTokens: 50000, contextTokens: 50000, contextWindow: 200000, percentage: 25, totalTokens: 50000 }));
     const container = parentEl.querySelector('.clian-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('50k / 200k');
+    expect(container?.getAttribute('data-tooltip')).toBe('Context: 50k / 200k (25%)\nTurn: 50k in = 50k total');
   });
 
   it('should format small token counts without k suffix', () => {
-    meter.update(makeUsage({ contextTokens: 500, contextWindow: 200000, percentage: 0 }));
+    meter.update(makeUsage({ inputTokens: 500, contextTokens: 500, contextWindow: 200000, percentage: 0, totalTokens: 500 }));
     const container = parentEl.querySelector('.clian-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('500 / 200k');
+    expect(container?.getAttribute('data-tooltip')).toBe('Context: 500 / 200k (0%)\nTurn: 500 in = 500 total');
   });
 
   it('should add compact reminder to tooltip when usage > 80%', () => {
-    meter.update(makeUsage({ contextTokens: 170000, contextWindow: 200000, percentage: 85 }));
+    meter.update(makeUsage({ inputTokens: 170000, contextTokens: 170000, contextWindow: 200000, percentage: 85, totalTokens: 170000 }));
     const container = parentEl.querySelector('.clian-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('170k / 200k (Approaching limit, run `/compact` to continue)');
+    expect(container?.getAttribute('data-tooltip')).toBe('Context: 170k / 200k (85%)\nTurn: 170k in = 170k total\nApproaching limit, run `/compact` to continue');
   });
 
   it('should not add compact reminder to tooltip when usage ≤ 80%', () => {
-    meter.update(makeUsage({ contextTokens: 160000, contextWindow: 200000, percentage: 80 }));
+    meter.update(makeUsage({ inputTokens: 160000, contextTokens: 160000, contextWindow: 200000, percentage: 80, totalTokens: 160000 }));
     const container = parentEl.querySelector('.clian-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('160k / 200k');
+    expect(container?.getAttribute('data-tooltip')).toBe('Context: 160k / 200k (80%)\nTurn: 160k in = 160k total');
+  });
+  it('should show compact total token summary next to the percentage', () => {
+    meter.update(makeUsage({
+      inputTokens: 12000,
+      cacheReadInputTokens: 3000,
+      outputTokens: 6000,
+      totalTokens: 21000,
+      contextTokens: 15000,
+      contextWindow: 200000,
+      percentage: 8,
+    }));
+
+    const summary = parentEl.querySelector('.clian-context-meter-summary');
+    expect(summary?.textContent).toBe('21k');
+  });
+
+  it('should include input, cache, and output breakdown in tooltip when available', () => {
+    meter.update(makeUsage({
+      inputTokens: 12000,
+      cacheReadInputTokens: 3000,
+      outputTokens: 6000,
+      totalTokens: 21000,
+      contextTokens: 15000,
+      contextWindow: 200000,
+      percentage: 8,
+    }));
+
+    const container = parentEl.querySelector('.clian-context-meter');
+    expect(container?.getAttribute('data-tooltip')).toBe('Context: 15k / 200k (8%)\nTurn: 12k in + 3k cache + 6k out = 21k total');
   });
 });
 

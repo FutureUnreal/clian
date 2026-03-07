@@ -186,6 +186,7 @@ function normalizeHubConfig(rawConfig) {
   const model = trimString(rawConfig.model);
 
   const codexCommand = trimString(rawConfig.codexCommand);
+  const codexApprovalMode = trimString(rawConfig.codexApprovalMode);
   const codexSandbox = trimString(rawConfig.codexSandbox);
 
   const geminiCommand = trimString(rawConfig.geminiCommand);
@@ -210,6 +211,7 @@ function normalizeHubConfig(rawConfig) {
     ...(claudeCodePath ? { claudeCodePath } : {}),
     ...(model ? { model } : {}),
     ...(codexCommand ? { codexCommand } : {}),
+    ...(codexApprovalMode ? { codexApprovalMode } : {}),
     ...(codexSandbox ? { codexSandbox } : {}),
     ...(geminiCommand ? { geminiCommand } : {}),
     ...(geminiApprovalMode ? { geminiApprovalMode } : {}),
@@ -424,6 +426,10 @@ const CONFIG = {
     FILE_CONFIG.codexCommand ||
     'codex'
   ).trim() || 'codex',
+  codexApprovalMode:
+    normalizePermissionMode(process.env.CLIAN_HUB_CODEX_APPROVAL_MODE) ||
+    normalizePermissionMode(FILE_CONFIG.codexApprovalMode) ||
+    'yolo',
   codexSandbox: trimString(process.env.CLIAN_HUB_CODEX_SANDBOX) || FILE_CONFIG.codexSandbox || null,
   geminiCommand: (
     trimString(process.env.CLIAN_HUB_GEMINI_COMMAND) ||
@@ -908,6 +914,48 @@ function normalizeCodexThinkingMode(thinkingMode) {
   if (!raw || raw === 'default' || raw === 'auto') return null;
   const allowed = new Set(['low', 'medium', 'high', 'xhigh']);
   return allowed.has(raw) ? raw : null;
+}
+
+function normalizePermissionMode(permissionMode) {
+  const raw = typeof permissionMode === 'string' ? permissionMode.trim().toLowerCase() : '';
+  if (!raw) return null;
+  if (raw === 'yolo' || raw === 'bypasspermissions' || raw === 'dontask') return 'yolo';
+  if (raw === 'plan') return 'plan';
+  if (raw === 'normal' || raw === 'safe' || raw === 'acceptedits' || raw === 'default') return 'normal';
+  return null;
+}
+
+function buildCodexPermissionArgs(permissionMode, explicitSandbox) {
+  if (normalizePermissionMode(permissionMode) === 'yolo') {
+    return ['--dangerously-bypass-approvals-and-sandbox'];
+  }
+
+  return ['--ask-for-approval', 'on-request', '--sandbox', explicitSandbox || 'workspace-write'];
+}
+
+function normalizeGeminiApprovalMode(approvalMode) {
+  const raw = typeof approvalMode === 'string' ? approvalMode.trim().toLowerCase() : '';
+  if (!raw) return null;
+  if (raw === 'auto_edit' || raw === 'autoedit') return 'auto_edit';
+  if (raw === 'default' || raw === 'plan' || raw === 'yolo') return raw;
+  return null;
+}
+
+function resolveGeminiApprovalMode(permissionMode, fallbackApprovalMode) {
+  const normalizedPermissionMode = normalizePermissionMode(permissionMode);
+  if (normalizedPermissionMode === 'yolo') {
+    return 'yolo';
+  }
+
+  if (normalizedPermissionMode === 'plan') {
+    return 'plan';
+  }
+
+  if (normalizedPermissionMode === 'normal') {
+    return 'default';
+  }
+
+  return normalizeGeminiApprovalMode(fallbackApprovalMode) || 'yolo';
 }
 
 function normalizeGeminiThinkingMode(thinkingMode) {
@@ -1686,6 +1734,7 @@ class SessionRunner {
     this.thinkingMode = typeof options.thinkingMode === 'string' && options.thinkingMode.trim()
       ? options.thinkingMode.trim()
       : null;
+    this.permissionMode = normalizePermissionMode(options.permissionMode);
 
     this.supportedSlashCommands = [];
 
@@ -1744,6 +1793,7 @@ class SessionRunner {
       },
       todoProgress: null,
       pendingRequestsCount,
+      permissionMode: this.permissionMode || undefined,
       modelMode: this.model || undefined,
       thinkingMode: this.thinkingMode || undefined,
     };
@@ -1769,7 +1819,7 @@ class SessionRunner {
       thinking: this.thinking,
       thinkingAt: this.thinking ? Date.now() : 0,
       todos: undefined,
-      permissionMode: undefined,
+      permissionMode: this.permissionMode || undefined,
       modelMode: this.model || undefined,
       thinkingMode: this.thinkingMode || undefined,
     };
@@ -2711,10 +2761,7 @@ class SessionRunner {
     try { ensureDir(codexHome); } catch { /* ignore */ }
 
     const args = ['exec', '--json', '--skip-git-repo-check', '-C', session.cwd];
-
-    if (CONFIG.codexSandbox) {
-      args.push('--sandbox', CONFIG.codexSandbox);
-    }
+    args.push(...buildCodexPermissionArgs(session.permissionMode || CONFIG.codexApprovalMode, CONFIG.codexSandbox));
 
     if (session.model) {
       args.push('-m', session.model);
@@ -2835,7 +2882,7 @@ class SessionRunner {
 
     const args = [
       '--output-format', 'stream-json',
-      '--approval-mode', CONFIG.geminiApprovalMode,
+      '--approval-mode', resolveGeminiApprovalMode(session.permissionMode, CONFIG.geminiApprovalMode),
     ];
 
     if (CONFIG.geminiSandbox) {
@@ -3043,6 +3090,7 @@ function loadSessionsIntoMemory() {
         name: s.name || null,
         flavor: s.flavor || 'claude',
         model: s.model || null,
+        permissionMode: s.permissionMode || null,
         thinkingMode: s.thinkingMode || null,
         createdAt: s.createdAt || Date.now(),
         updatedAt: s.updatedAt || Date.now(),
@@ -3064,6 +3112,7 @@ function persistSessionsFromMemory() {
         name: runner.name,
         flavor: runner.flavor,
         model: runner.model,
+        permissionMode: runner.permissionMode,
         thinkingMode: runner.thinkingMode,
         createdAt: runner.createdAt,
         updatedAt: runner.updatedAt,
@@ -3294,6 +3343,7 @@ const server = http.createServer(async (req, res) => {
     const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : null;
     const flavor = typeof body.flavor === 'string' ? body.flavor.trim() : 'claude';
     const model = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : null;
+    const permissionMode = normalizePermissionMode(body.permissionMode);
     const thinkingMode = typeof body.thinkingMode === 'string' && body.thinkingMode.trim() ? body.thinkingMode.trim() : null;
     const resumeToken = typeof body.resumeToken === 'string' && body.resumeToken.trim()
       ? body.resumeToken.trim()
@@ -3314,7 +3364,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const runner = new SessionRunner({ namespace, id, cwd, name, flavor, model, resumeToken });
+    const runner = new SessionRunner({ namespace, id, cwd, name, flavor, model, permissionMode, resumeToken });
     if (thinkingMode) {
       runner.thinkingMode = thinkingMode;
     }
@@ -3379,10 +3429,11 @@ const server = http.createServer(async (req, res) => {
 
     const hasName = typeof body.name === 'string';
     const hasModel = typeof body.model === 'string';
+    const hasPermissionMode = typeof body.permissionMode === 'string';
     const hasThinkingMode = typeof body.thinkingMode === 'string';
 
-    if (!hasName && !hasModel && !hasThinkingMode) {
-      sendJson(res, 400, { error: 'Invalid body. Provide name, model, and/or thinkingMode.' });
+    if (!hasName && !hasModel && !hasPermissionMode && !hasThinkingMode) {
+      sendJson(res, 400, { error: 'Invalid body. Provide name, model, permissionMode, and/or thinkingMode.' });
       return;
     }
 
@@ -3394,6 +3445,10 @@ const server = http.createServer(async (req, res) => {
     if (hasModel) {
       const nextModel = body.model.trim();
       runner.model = nextModel ? nextModel : null;
+    }
+
+    if (hasPermissionMode) {
+      runner.permissionMode = normalizePermissionMode(body.permissionMode);
     }
 
     if (hasThinkingMode) {

@@ -18,6 +18,7 @@ import {
   resolveGeminiThinkingBudget,
   type SlashCommand,
   type StreamChunk,
+  type UsageInfo,
 } from '../types';
 import type { AskUserQuestionCallback, ChatService, EnsureReadyOptionsLike } from './ChatService';
 import type { ApprovalCallback, QueryOptions } from './ClianService';
@@ -112,6 +113,51 @@ function normalizeDelta(previous: string, next: string): string {
   if (!previous) return next;
   if (next.startsWith(previous)) return next.slice(previous.length);
   return next;
+}
+
+export function buildGeminiApprovalMode(permissionMode: string): string {
+  if (permissionMode === 'yolo') {
+    return 'yolo';
+  }
+
+  if (permissionMode === 'plan') {
+    return 'plan';
+  }
+
+  return 'default';
+}
+
+export function buildGeminiUsageInfo(
+  stats: Record<string, unknown>,
+  model: string,
+  customContextLimits?: Record<string, number>,
+): UsageInfo {
+  const inputTokensTotal = typeof stats.input_tokens === 'number' ? stats.input_tokens : 0;
+  const cachedInputTokens = typeof stats.cached === 'number' ? stats.cached : 0;
+  const nonCachedInputTokens =
+    typeof stats.input === 'number'
+      ? stats.input
+      : Math.max(0, inputTokensTotal - cachedInputTokens);
+  const outputTokens = typeof stats.output_tokens === 'number' ? stats.output_tokens : 0;
+  const totalTokens =
+    typeof stats.total_tokens === 'number' && stats.total_tokens > 0
+      ? stats.total_tokens
+      : inputTokensTotal + Math.max(0, outputTokens);
+  const contextTokens = inputTokensTotal > 0 ? inputTokensTotal : (nonCachedInputTokens + cachedInputTokens);
+  const contextWindow = getGeminiContextWindowSize(model, customContextLimits);
+  const percentage = Math.min(100, Math.max(0, Math.round((contextTokens / contextWindow) * 100)));
+
+  return {
+    model: model || undefined,
+    inputTokens: nonCachedInputTokens,
+    cacheCreationInputTokens: 0,
+    cacheReadInputTokens: cachedInputTokens,
+    outputTokens,
+    totalTokens,
+    contextWindow,
+    contextTokens,
+    percentage,
+  };
 }
 
 function upsertGeminiThinkingBudgetOverride(
@@ -368,11 +414,7 @@ export class GeminiCliService implements ChatService {
 
     const args: string[] = ['--output-format', 'stream-json'];
 
-    // Let users control approvals via env, default to "yolo" for parity with hub.
-    const approvalMode = typeof customEnv.GEMINI_APPROVAL_MODE === 'string'
-      ? customEnv.GEMINI_APPROVAL_MODE.trim()
-      : '';
-    args.push('--approval-mode', approvalMode || 'yolo');
+    args.push('--approval-mode', buildGeminiApprovalMode(this.plugin.settings.permissionMode));
 
     const sandboxFlag = typeof customEnv.GEMINI_SANDBOX === 'string'
       ? customEnv.GEMINI_SANDBOX.trim()
@@ -608,29 +650,12 @@ export class GeminiCliService implements ChatService {
 
           const stats = isRecord(evt.stats) ? (evt.stats as Record<string, unknown>) : null;
           if (stats) {
-            const inputTokensTotal = typeof stats.input_tokens === 'number' ? stats.input_tokens : 0;
-            const cachedInputTokens = typeof stats.cached === 'number' ? stats.cached : 0;
-            const nonCachedInputTokens = typeof stats.input === 'number'
-              ? stats.input
-              : Math.max(0, inputTokensTotal - cachedInputTokens);
-
-            const contextTokens = inputTokensTotal > 0 ? inputTokensTotal : (nonCachedInputTokens + cachedInputTokens);
             const usageModel = resolvedModelFromInit || model || '';
-            const contextWindow = getGeminiContextWindowSize(usageModel, this.plugin.settings.customContextLimits);
-            const percentage = Math.min(100, Math.max(0, Math.round((contextTokens / contextWindow) * 100)));
 
             yield {
               type: 'usage',
               sessionId: this.sessionId,
-              usage: {
-                model: usageModel || undefined,
-                inputTokens: nonCachedInputTokens,
-                cacheCreationInputTokens: 0,
-                cacheReadInputTokens: cachedInputTokens,
-                contextWindow,
-                contextTokens,
-                percentage,
-              },
+              usage: buildGeminiUsageInfo(stats, usageModel, this.plugin.settings.customContextLimits),
             };
           }
 

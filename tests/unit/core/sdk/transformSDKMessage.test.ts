@@ -713,6 +713,8 @@ describe('transformSDKMessage', () => {
       expect(usage.inputTokens).toBe(1000);
       expect(usage.cacheCreationInputTokens).toBe(300);
       expect(usage.cacheReadInputTokens).toBe(200);
+      expect(usage.outputTokens).toBe(500);
+      expect(usage.totalTokens).toBe(2000);
       expect(usage.contextTokens).toBe(1500); // 1000 + 300 + 200
       expect(usage.contextWindow).toBe(200000); // Standard context window
       expect(usage.percentage).toBe(1); // 1500 / 200000 * 100 rounded
@@ -857,6 +859,8 @@ describe('transformSDKMessage', () => {
       expect(usage.inputTokens).toBe(0);
       expect(usage.cacheCreationInputTokens).toBe(0);
       expect(usage.cacheReadInputTokens).toBe(0);
+      expect(usage.outputTokens).toBe(0);
+      expect(usage.totalTokens).toBe(0);
       expect(usage.contextTokens).toBe(0);
     });
   });

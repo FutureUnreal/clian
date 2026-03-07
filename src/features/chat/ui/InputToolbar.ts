@@ -912,6 +912,7 @@ export class ContextUsageMeter {
   private container: HTMLElement;
   private fillPath: SVGPathElement | null = null;
   private percentEl: HTMLElement | null = null;
+  private summaryEl: HTMLElement | null = null;
   private circumference: number = 0;
 
   constructor(parentEl: HTMLElement) {
@@ -957,6 +958,7 @@ export class ContextUsageMeter {
     this.fillPath = gaugeEl.querySelector('.clian-meter-fill');
 
     this.percentEl = this.container.createSpan({ cls: 'clian-context-meter-percent' });
+    this.summaryEl = this.container.createSpan({ cls: 'clian-context-meter-summary' });
   }
 
   update(usage: UsageInfo | null): void {
@@ -974,6 +976,11 @@ export class ContextUsageMeter {
       this.percentEl.setText(`${usage.percentage}%`);
     }
 
+    const totalTokens = this.getTotalTokens(usage);
+    if (this.summaryEl) {
+      this.summaryEl.setText(totalTokens > 0 ? this.formatTokens(totalTokens) : '');
+    }
+
     // Toggle warning class for > 80%
     if (usage.percentage > 80) {
       this.container.addClass('warning');
@@ -981,12 +988,35 @@ export class ContextUsageMeter {
       this.container.removeClass('warning');
     }
 
-    // Set tooltip with detailed usage
-    let tooltip = `${this.formatTokens(usage.contextTokens)} / ${this.formatTokens(usage.contextWindow)}`;
+    const cachedTokens = this.getCachedTokens(usage);
+    const outputTokens = this.getOutputTokens(usage);
+    const turnParts = [`${this.formatTokens(usage.inputTokens)} in`];
+    if (cachedTokens > 0) {
+      turnParts.push(`${this.formatTokens(cachedTokens)} cache`);
+    }
+    if (outputTokens > 0) {
+      turnParts.push(`${this.formatTokens(outputTokens)} out`);
+    }
+
+    let tooltip = `Context: ${this.formatTokens(usage.contextTokens)} / ${this.formatTokens(usage.contextWindow)} (${usage.percentage}%)`;
+    tooltip += `\nTurn: ${turnParts.join(' + ')} = ${this.formatTokens(totalTokens)} total`;
     if (usage.percentage > 80) {
-      tooltip += ' (Approaching limit, run `/compact` to continue)';
+      tooltip += '\nApproaching limit, run `/compact` to continue';
     }
     this.container.setAttribute('data-tooltip', tooltip);
+    this.container.setAttribute('title', tooltip);
+  }
+
+  private getCachedTokens(usage: UsageInfo): number {
+    return usage.cacheCreationInputTokens + usage.cacheReadInputTokens;
+  }
+
+  private getOutputTokens(usage: UsageInfo): number {
+    return usage.outputTokens ?? 0;
+  }
+
+  private getTotalTokens(usage: UsageInfo): number {
+    return usage.totalTokens ?? (usage.inputTokens + this.getCachedTokens(usage) + this.getOutputTokens(usage));
   }
 
   private formatTokens(tokens: number): string {
