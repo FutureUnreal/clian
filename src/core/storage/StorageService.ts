@@ -171,7 +171,7 @@ export class StorageService {
   async initialize(): Promise<CombinedSettings> {
     await this.ensureDirectories();
     await this.seedSharedLayerFromClaude();
-    await this.seedCliConfigsFromUserHome();
+    await this.seedGeminiConfigFromUserHome();
     await this.runMigrations();
     await this.syncMcpToCliConfigs();
     await this.syncCommandsAndSkillsToCliDirs();
@@ -567,16 +567,18 @@ export class StorageService {
   }
 
   /**
-   * Seeds Codex / Gemini CLI configs in the vault from the user's home directory once.
+   * Seeds Gemini CLI config in the vault from the user's home directory once.
    *
-   * This avoids "fresh vault" breakage where we create minimal config files (e.g. MCP only)
-   * that don't include required auth/provider settings already configured by tools like CC Switch.
+   * Codex is intentionally excluded here: Codex natively merges the user layer
+   * (`~/.codex/config.toml`) with the project layer (`<cwd>/.codex/config.toml`).
+   * Copying the home config into the vault-local `.codex/config.toml` collapses
+   * those layers and makes project-specific overrides behave incorrectly.
    *
    * Notes:
    * - Best-effort: failures are ignored.
    * - Skipped under Jest to avoid importing the developer machine's real CLI configs into tests.
    */
-  private async seedCliConfigsFromUserHome(): Promise<void> {
+  private async seedGeminiConfigFromUserHome(): Promise<void> {
     if (process.env.CLIAN_DISABLE_HOME_SEED === '1') {
       return;
     }
@@ -588,66 +590,7 @@ export class StorageService {
     const home = os.homedir();
     if (!home) return;
 
-    await this.seedCodexFromUserHome(home);
     await this.seedGeminiFromUserHome(home);
-  }
-
-  private isCodexConfigOnlyManagedMcpBlock(content: string): boolean {
-    const start = '# BEGIN CLIAN MCP SERVERS';
-    const end = '# END CLIAN MCP SERVERS';
-    const escaped = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(`${escaped(start)}[\\s\\S]*?${escaped(end)}`, 'm');
-    const stripped = content.replace(pattern, '').trim();
-    return stripped.length === 0;
-  }
-
-  private async seedCodexFromUserHome(homeDir: string): Promise<void> {
-    try {
-      const sourceDir = path.join(homeDir, '.codex');
-      const sourceAuth = path.join(sourceDir, 'auth.json');
-      const sourceConfig = path.join(sourceDir, 'config.toml');
-
-      const hasAuth = fs.existsSync(sourceAuth);
-      const hasConfig = fs.existsSync(sourceConfig);
-      if (!hasAuth && !hasConfig) {
-        return;
-      }
-
-      await this.adapter.ensureFolder('.codex');
-
-      // auth.json (required for many setups)
-      try {
-        if (!(await this.adapter.exists('.codex/auth.json')) && hasAuth) {
-          const content = await fs.promises.readFile(sourceAuth, 'utf8');
-          await this.adapter.write('.codex/auth.json', content);
-        }
-      } catch {
-        // ignore
-      }
-
-      // config.toml (provider base_url/model settings)
-      try {
-        if (!hasConfig) return;
-
-        const destPath = '.codex/config.toml';
-        const destExists = await this.adapter.exists(destPath);
-        if (!destExists) {
-          const content = await fs.promises.readFile(sourceConfig, 'utf8');
-          await this.adapter.write(destPath, content);
-          return;
-        }
-
-        const existing = await this.adapter.read(destPath);
-        if (this.isCodexConfigOnlyManagedMcpBlock(existing)) {
-          const content = await fs.promises.readFile(sourceConfig, 'utf8');
-          await this.adapter.write(destPath, content);
-        }
-      } catch {
-        // ignore
-      }
-    } catch {
-      // Best-effort seed; ignore failures.
-    }
   }
 
   private async seedGeminiFromUserHome(homeDir: string): Promise<void> {

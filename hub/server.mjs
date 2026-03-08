@@ -1514,10 +1514,131 @@ function runJsonlProcess({ command, args, cwd, stdinText, env, signal, onChild, 
 const MCP_CONFIG_REL_PATH = path.join('.clian', 'mcp.json');
 const CLAUDE_MCP_CONFIG_REL_PATH = path.join('.claude', 'mcp.json');
 const CODEX_CONFIG_REL_PATH = path.join('.codex', 'config.toml');
+const CODEX_MCP_WRAPPER_REL_PATH = path.join('.clian', 'bin', 'codex-mcp-wrapper.cjs');
 const GEMINI_SETTINGS_REL_PATH = path.join('.gemini', 'settings.json');
 
 const CODEX_MCP_BLOCK_START = '# BEGIN CLIAN MCP SERVERS';
 const CODEX_MCP_BLOCK_END = '# END CLIAN MCP SERVERS';
+const CODEX_WRAPPED_STDIO_SERVER_NAMES = new Set(['grok-search']);
+const CLAUDE_USER_SETTINGS_PATH = path.join(os.homedir(), '.claude.json');
+
+const CODEX_MCP_WRAPPER_SCRIPT = [
+  '#!/usr/bin/env node',
+  "const { spawn } = require('child_process');",
+  "const path = require('path');",
+  "const { createInterface } = require('readline');",
+  '',
+  'function parseArgs(argv) {',
+  "  const splitIndex = argv.indexOf('--');",
+  '  const values = splitIndex >= 0 ? argv.slice(splitIndex + 1) : argv;',
+  '  if (values.length === 0) {',
+  "    process.stderr.write('[clian-codex-mcp-wrapper] Missing child command.\\n');",
+  '    process.exit(1);',
+  '  }',
+  '  return { command: values[0], args: values.slice(1) };',
+  '}',
+  '',
+  'function safeParseJson(line) {',
+  '  try {',
+  '    return JSON.parse(line);',
+  '  } catch {',
+  '    return null;',
+  '  }',
+  '}',
+  '',
+  'function isJsonRpcMessage(message) {',
+  "  if (!message || typeof message !== 'object' || Array.isArray(message)) return false;",
+  "  if (message.jsonrpc === '2.0') return true;",
+  "  return Object.prototype.hasOwnProperty.call(message, 'method')",
+  "    || Object.prototype.hasOwnProperty.call(message, 'result')",
+  "    || Object.prototype.hasOwnProperty.call(message, 'error')",
+  "    || Object.prototype.hasOwnProperty.call(message, 'id');",
+  '}',
+  '',
+  'function idsMatch(left, right) {',
+  '  return JSON.stringify(left) === JSON.stringify(right);',
+  '}',
+  '',
+  'function isInitializeResponse(message, requestId) {',
+  "  if (!message || typeof message !== 'object') return false;",
+  "  if (!Object.prototype.hasOwnProperty.call(message, 'id')) return false;",
+  '  if (!idsMatch(message.id, requestId)) return false;',
+  "  return Object.prototype.hasOwnProperty.call(message, 'result') || Object.prototype.hasOwnProperty.call(message, 'error');",
+  '}',
+  '',
+  'function shouldUseShell(command) {',
+  "  if (process.platform !== 'win32') return false;",
+  "  const ext = path.extname(String(command || '')).toLowerCase();",
+  "  return ext === '.cmd' || ext === '.bat' || ext === '.ps1' || ext === '';",
+  '}',
+  '',
+  'const { command, args } = parseArgs(process.argv.slice(2));',
+  'const childEnv = { ...process.env };',
+  "if (process.platform === 'win32' && /^uvx(?:\\.exe)?$/i.test(path.basename(command))) {",
+  "  if (!childEnv.PYTHONIOENCODING) childEnv.PYTHONIOENCODING = 'utf-8';",
+  "  if (!childEnv.PYTHONUTF8) childEnv.PYTHONUTF8 = '1';",
+  '}',
+  '',
+  'const child = spawn(command, args, {',
+  '  stdio: [\'pipe\', \'pipe\', \'pipe\'],',
+  '  shell: shouldUseShell(command),',
+  '  windowsHide: true,',
+  '  cwd: process.cwd(),',
+  '  env: childEnv,',
+  '});',
+  '',
+  'let initializeRequestId;',
+  'let initializeSatisfied = false;',
+  '',
+  "child.stdin.on('error', () => {});",
+  '',
+  "const stdinRl = createInterface({ input: process.stdin, crlfDelay: Infinity });",
+  "stdinRl.on('line', (line) => {",
+  '  const message = safeParseJson(line);',
+  "  if (!initializeSatisfied && message && typeof message === 'object' && message.method === 'initialize' && Object.prototype.hasOwnProperty.call(message, 'id')) {",
+  '    initializeRequestId = message.id;',
+  '  }',
+  '  try {',
+  "    child.stdin.write(`${line}\\n`);",
+  '  } catch {',
+  '  }',
+  '});',
+  "stdinRl.on('close', () => {",
+  '  try {',
+  '    child.stdin.end();',
+  '  } catch {',
+  '  }',
+  '});',
+  '',
+  "const stdoutRl = createInterface({ input: child.stdout, crlfDelay: Infinity });",
+  "stdoutRl.on('line', (line) => {",
+  '  const trimmed = line.trim();',
+  '  if (!trimmed) return;',
+  '  const message = safeParseJson(line);',
+  '  if (isJsonRpcMessage(message)) {',
+  '    if (!initializeSatisfied && initializeRequestId !== undefined && isInitializeResponse(message, initializeRequestId)) {',
+  '      initializeSatisfied = true;',
+  '    }',
+  "    process.stdout.write(`${line}\\n`);",
+  '    return;',
+  '  }',
+  "  process.stderr.write(`[clian-codex-mcp-wrapper] ${initializeSatisfied ? 'redirected-stdout' : 'suppressed-pre-init'}: ${line}\\n`);",
+  '});',
+  '',
+  "child.stderr.on('data', (chunk) => {",
+  '  process.stderr.write(chunk);',
+  '});',
+  '',
+  "child.on('error', (error) => {",
+  "  process.stderr.write(`[clian-codex-mcp-wrapper] spawn failed: ${error.message}\\n`);",
+  '  process.exit(1);',
+  '});',
+  '',
+  "child.on('close', (code) => {",
+  "  process.exit(typeof code === 'number' ? code : 0);",
+  '});',
+  '',
+].join('\n');
 
 function isValidMcpServerConfig(config) {
   if (!isRecord(config)) return false;
@@ -1709,7 +1830,195 @@ function normalizeStringRecord(value) {
   return Object.keys(out).length > 0 ? out : null;
 }
 
-function buildCodexMcpBlock(servers) {
+let cachedClaudeUserMcpServers = null;
+
+function normalizeStringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry) => typeof entry === 'string');
+}
+
+const GEMINI_COMMON_LOCAL_FALLBACK_KEYS = [
+  'timeout',
+  'trust',
+  'description',
+  'includeTools',
+  'excludeTools',
+  'oauth',
+  'authProviderType',
+  'targetAudience',
+  'targetServiceAccount',
+];
+
+const GEMINI_STDIO_LOCAL_FALLBACK_KEYS = [
+  'cwd',
+  ...GEMINI_COMMON_LOCAL_FALLBACK_KEYS,
+];
+
+function cloneJsonLike(value) {
+  if (Array.isArray(value)) {
+    return [...value];
+  }
+  if (value && typeof value === 'object') {
+    return JSON.parse(JSON.stringify(value));
+  }
+  return value;
+}
+
+function copyGeminiLocalFallbackFields(target, source, keys) {
+  if (!isRecord(source)) return;
+
+  for (const key of keys) {
+    const value = source[key];
+    if (value === undefined) continue;
+
+    if (typeof value === 'string') {
+      if (value.trim()) {
+        target[key] = value;
+      }
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      target[key] = cloneJsonLike(value.filter((entry) => typeof entry === 'string'));
+      continue;
+    }
+
+    target[key] = cloneJsonLike(value);
+  }
+}
+
+function getGeminiLocalMcpServers(parsed) {
+  const raw = isRecord(parsed) && isRecord(parsed.mcpServers) ? parsed.mcpServers : null;
+  if (!raw) return {};
+
+  const out = {};
+  for (const [name, value] of Object.entries(raw)) {
+    if (isRecord(value)) {
+      out[name] = value;
+    }
+  }
+  return out;
+}
+
+function mergeGeminiStringRecord(existingValue, explicitValue) {
+  const existing = normalizeStringRecord(existingValue) || {};
+  const explicit = normalizeStringRecord(explicitValue) || {};
+  const merged = { ...existing, ...explicit };
+  return Object.keys(merged).length > 0 ? merged : null;
+}
+
+function sameStringArrays(left, right) {
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+}
+
+function loadClaudeUserMcpServers() {
+  if (cachedClaudeUserMcpServers) {
+    return cachedClaudeUserMcpServers;
+  }
+
+  try {
+    if (!fs.existsSync(CLAUDE_USER_SETTINGS_PATH)) {
+      cachedClaudeUserMcpServers = {};
+      return cachedClaudeUserMcpServers;
+    }
+
+    const raw = safeJsonParse(fs.readFileSync(CLAUDE_USER_SETTINGS_PATH, 'utf8'));
+    const mcpServers = isRecord(raw) && isRecord(raw.mcpServers) ? raw.mcpServers : null;
+    if (!mcpServers) {
+      cachedClaudeUserMcpServers = {};
+      return cachedClaudeUserMcpServers;
+    }
+
+    const out = {};
+    for (const [name, value] of Object.entries(mcpServers)) {
+      if (!isRecord(value) || typeof value.command !== 'string' || !value.command.trim()) continue;
+      const env = normalizeStringRecord(value.env);
+      if (!env) continue;
+
+      out[name] = {
+        command: value.command.trim(),
+        args: normalizeStringArray(value.args),
+        env,
+      };
+    }
+
+    cachedClaudeUserMcpServers = out;
+    return cachedClaudeUserMcpServers;
+  } catch {
+    cachedClaudeUserMcpServers = {};
+    return cachedClaudeUserMcpServers;
+  }
+}
+
+function getClaudeUserEnvFallback(server) {
+  const name = String(server.name || '').trim();
+  const config = server.config;
+  if (!name || !isRecord(config) || typeof config.command !== 'string') return null;
+
+  const candidate = loadClaudeUserMcpServers()[name];
+  if (!candidate || candidate.command !== config.command) return null;
+
+  const args = Array.isArray(config.args)
+    ? config.args.filter((entry) => typeof entry === 'string')
+    : [];
+  if (!sameStringArrays(args, candidate.args)) return null;
+
+  return candidate.env;
+}
+
+function getCodexInheritedEnvVarNames(server, explicitEnv) {
+  const fallbackEnv = getClaudeUserEnvFallback(server);
+  if (!fallbackEnv) return [];
+
+  const existing = explicitEnv || {};
+  return Object.keys(fallbackEnv)
+    .filter((key) => !Object.prototype.hasOwnProperty.call(existing, key))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function withClaudeUserMcpEnv(baseEnv) {
+  const out = { ...baseEnv };
+  const userServers = loadClaudeUserMcpServers();
+
+  for (const server of Object.values(userServers)) {
+    for (const [key, value] of Object.entries(server.env || {})) {
+      if (typeof out[key] !== 'string' || !out[key]) {
+        out[key] = value;
+      }
+    }
+  }
+
+  return out;
+}
+
+function shouldUseCodexMcpWrapper(server, platform = process.platform) {
+  if (platform !== 'win32') return false;
+  const name = String(server.name || '').trim().toLowerCase();
+  if (CODEX_WRAPPED_STDIO_SERVER_NAMES.has(name)) return true;
+  const config = server.config;
+  if (!isRecord(config) || typeof config.command !== 'string') return false;
+  const command = config.command.trim().toLowerCase();
+  return command === 'uvx' || command.endsWith('/uvx.exe') || command.endsWith('\\uvx.exe');
+}
+
+function getCodexWrapperEnv(server) {
+  const config = server.config;
+  const base = normalizeStringRecord(isRecord(config) ? config.env : null) || {};
+  if (!isRecord(config) || typeof config.command !== 'string') {
+    return Object.keys(base).length > 0 ? base : null;
+  }
+
+  const command = config.command.trim().toLowerCase();
+  if (process.platform === 'win32' && (command === 'uvx' || command.endsWith('/uvx.exe') || command.endsWith('\\uvx.exe'))) {
+    if (!base.PYTHONIOENCODING) base.PYTHONIOENCODING = 'utf-8';
+    if (!base.PYTHONUTF8) base.PYTHONUTF8 = '1';
+  }
+
+  return Object.keys(base).length > 0 ? base : null;
+}
+
+function buildCodexMcpBlock(servers, cwd) {
   const lines = [];
   lines.push(CODEX_MCP_BLOCK_START);
   lines.push('# Managed by Clian. Edit `.clian/mcp.json` instead.');
@@ -1725,13 +2034,24 @@ function buildCodexMcpBlock(servers) {
     lines.push(`enabled = ${server.enabled ? 'true' : 'false'}`);
 
     if (isRecord(config) && typeof config.command === 'string') {
-      lines.push(`command = ${tomlString(config.command)}`);
-      if (Array.isArray(config.args) && config.args.length > 0) {
-        lines.push(`args = ${tomlArray(config.args)}`);
+      const useWrapper = shouldUseCodexMcpWrapper(server);
+      if (useWrapper) {
+        const wrapperPath = path.join(cwd, CODEX_MCP_WRAPPER_REL_PATH).replace(/\\/g, '/');
+        lines.push('command = "node"');
+        lines.push(`args = ${tomlArray([wrapperPath, '--', config.command, ...(Array.isArray(config.args) ? config.args : [])])}`);
+      } else {
+        lines.push(`command = ${tomlString(config.command)}`);
+        if (Array.isArray(config.args) && config.args.length > 0) {
+          lines.push(`args = ${tomlArray(config.args)}`);
+        }
       }
-      const env = normalizeStringRecord(config.env);
+      const env = useWrapper ? getCodexWrapperEnv(server) : normalizeStringRecord(config.env);
       if (env) {
         lines.push(`env = ${tomlInlineTable(env)}`);
+      }
+      const envVars = getCodexInheritedEnvVarNames(server, env);
+      if (envVars.length > 0) {
+        lines.push(`env_vars = ${tomlArray(envVars)}`);
       }
     } else if (isRecord(config) && typeof config.url === 'string') {
       lines.push(`url = ${tomlString(config.url)}`);
@@ -1772,7 +2092,7 @@ function replaceOrAppendManagedBlock(existing, block) {
   return String(existing || '').trimEnd() + '\n\n' + block.trimEnd() + '\n';
 }
 
-function buildGeminiMcpServers(servers) {
+function buildGeminiMcpServers(servers, existingServers = {}) {
   const out = {};
 
   const sorted = [...servers].sort((a, b) => a.name.localeCompare(b.name));
@@ -1784,17 +2104,21 @@ function buildGeminiMcpServers(servers) {
 
     const config = server.config;
     const type = getMcpServerType(config);
+    const existing = existingServers[name];
     const disabledTools = Array.isArray(server.disabledTools)
       ? server.disabledTools.map((t) => String(t).trim()).filter(Boolean)
       : [];
 
     if (isRecord(config) && typeof config.command === 'string') {
-      const entry = { command: config.command };
+      const entry = {};
+      copyGeminiLocalFallbackFields(entry, existing, GEMINI_STDIO_LOCAL_FALLBACK_KEYS);
+      entry.command = config.command;
       if (Array.isArray(config.args) && config.args.length > 0) {
         entry.args = config.args;
       }
-      if (isRecord(config.env)) {
-        entry.env = config.env;
+      const env = mergeGeminiStringRecord(existing && existing.env, config.env);
+      if (env) {
+        entry.env = env;
       }
       if (disabledTools.length > 0) {
         entry.excludeTools = disabledTools;
@@ -1805,11 +2129,14 @@ function buildGeminiMcpServers(servers) {
 
     if (!isRecord(config) || typeof config.url !== 'string' || !config.url) continue;
     const headers = normalizeStringRecord(config.headers);
-    const entry = {
+    const mergedHeaders = mergeGeminiStringRecord(existing && existing.headers, headers);
+    const entry = {};
+    copyGeminiLocalFallbackFields(entry, existing, GEMINI_COMMON_LOCAL_FALLBACK_KEYS);
+    Object.assign(entry, {
       ...(type === 'sse' ? { url: config.url } : { httpUrl: config.url }),
-      ...(headers ? { headers } : {}),
+      ...(mergedHeaders ? { headers: mergedHeaders } : {}),
       ...(disabledTools.length > 0 ? { excludeTools: disabledTools } : {}),
-    };
+    });
 
     out[name] = entry;
   }
@@ -1826,11 +2153,14 @@ function syncMcpFromCwd(cwd, loaded) {
   // Claude Code: keep a copy for CLI consumers (best-effort; ignore if not needed).
   writeFileIfChanged(path.join(cwd, CLAUDE_MCP_CONFIG_REL_PATH), config.text);
 
+  // Codex wrapper: filter noisy stdout from certain stdio MCP servers.
+  writeFileIfChanged(path.join(cwd, CODEX_MCP_WRAPPER_REL_PATH), CODEX_MCP_WRAPPER_SCRIPT);
+
   // Codex: managed TOML block
   try {
     const absPath = path.join(cwd, CODEX_CONFIG_REL_PATH);
     const existing = fs.existsSync(absPath) ? fs.readFileSync(absPath, 'utf8') : '';
-    const block = buildCodexMcpBlock(config.servers);
+    const block = buildCodexMcpBlock(config.servers, cwd);
     const next = replaceOrAppendManagedBlock(existing, block);
     writeFileIfChanged(absPath, next);
   } catch {
@@ -1849,9 +2179,11 @@ function syncMcpFromCwd(cwd, loaded) {
       }
     }
 
+    const existingGeminiServers = getGeminiLocalMcpServers(parsed);
+
     const next = {
       ...parsed,
-      mcpServers: buildGeminiMcpServers(config.servers),
+      mcpServers: buildGeminiMcpServers(config.servers, existingGeminiServers),
     };
 
     writeFileIfChanged(absPath, JSON.stringify(next, null, 2));
@@ -2972,9 +3304,6 @@ class SessionRunner {
 
     try { syncMcpFromCwd(session.cwd); } catch { /* ignore */ }
 
-    const codexHome = path.join(session.cwd, '.codex');
-    try { ensureDir(codexHome); } catch { /* ignore */ }
-
     const args = ['exec', '--json', '--skip-git-repo-check', '-C', session.cwd];
     args.push(...buildCodexPermissionArgs(session.permissionMode || CONFIG.codexApprovalMode, CONFIG.codexSandbox));
 
@@ -3026,7 +3355,7 @@ class SessionRunner {
       args,
       cwd: session.cwd,
       stdinText: prompt,
-      env: { ...process.env, CODEX_HOME: codexHome },
+      env: withClaudeUserMcpEnv({ ...process.env }),
       signal: session.turnAbortController?.signal,
       onChild: (child) => {
         session.activeChild = child;

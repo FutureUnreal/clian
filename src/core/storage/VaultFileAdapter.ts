@@ -12,6 +12,11 @@ export class VaultFileAdapter {
 
   constructor(private app: App) {}
 
+  getBasePath(): string | null {
+    const adapter = this.app.vault.adapter;
+    return 'basePath' in adapter ? (adapter as { basePath: string }).basePath : null;
+  }
+
   async exists(path: string): Promise<boolean> {
     return this.app.vault.adapter.exists(path);
   }

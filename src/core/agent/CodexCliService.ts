@@ -1,9 +1,9 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'child_process';
-import * as fs from 'fs';
 import * as path from 'path';
 import { createInterface, type Interface as ReadlineInterface } from 'readline';
 
 import type ClianPlugin from '../../main';
+import { mergeClaudeUserMcpEnvIntoProcessEnv } from '../../utils/claudeUserMcp';
 import { getEnhancedPath, parseEnvironmentVariables } from '../../utils/env';
 import { parseCommand } from '../../utils/mcp';
 import { getVaultPath } from '../../utils/path';
@@ -224,14 +224,6 @@ export class CodexCliService implements ChatService {
     const enhancedPath = getEnhancedPath(customEnv.PATH);
     const resolvedCodexCommand = resolveWindowsShim(codexCommand) ?? codexCommand;
 
-    // Keep Codex state in the conventional vault-local folder name.
-    const codexHome = path.join(vaultPath, '.codex');
-    try {
-      fs.mkdirSync(codexHome, { recursive: true });
-    } catch {
-      // Best-effort; codex can still run without the folder being pre-created.
-    }
-
     const args: string[] = ['exec', '--json', '--skip-git-repo-check', '-C', vaultPath];
 
     const sandbox = typeof customEnv.CODEX_SANDBOX === 'string' ? customEnv.CODEX_SANDBOX.trim() : '';
@@ -279,15 +271,17 @@ export class CodexCliService implements ChatService {
         return ext === '.cmd' || ext === '.bat' || ext === '.ps1' || ext === '';
       })();
 
+      const codexProcessEnv = mergeClaudeUserMcpEnvIntoProcessEnv({
+        ...process.env,
+        ...customEnv,
+        PATH: enhancedPath,
+        ...(process.platform === 'win32' ? { Path: enhancedPath } : {}),
+      });
+
       child = spawn(resolvedCodexCommand, [...codexCommandArgs, ...args], {
         cwd: vaultPath,
         env: {
-          ...process.env,
-          ...customEnv,
-          PATH: enhancedPath,
-          // Some Windows environments key PATH as "Path"
-          ...(process.platform === 'win32' ? { Path: enhancedPath } : {}),
-          CODEX_HOME: codexHome,
+          ...codexProcessEnv,
         },
         // On Windows, some CLIs are distributed as `.cmd` shims (not directly spawnable).
         // `shell: true` lets cmd.exe resolve and execute them correctly.
