@@ -335,12 +335,12 @@ function shouldUseCodexMcpWrapper(server: ClianMcpServer, platform = process.pla
   return command === 'uvx' || command.endsWith('/uvx.exe') || command.endsWith('\\uvx.exe');
 }
 
-function getCodexWrapperEnv(server: ClianMcpServer): Record<string, string> | null {
+function getCodexWrapperEnv(server: ClianMcpServer, platform = process.platform): Record<string, string> | null {
   const config = server.config;
   if (!('command' in config)) return normalizeStringRecord(null);
   const base = normalizeStringRecord(config.env) || {};
   const command = String(config.command || '').trim().toLowerCase();
-  if (process.platform === 'win32' && (command === 'uvx' || command.endsWith('/uvx.exe') || command.endsWith('\\uvx.exe'))) {
+  if (platform === 'win32' && (command === 'uvx' || command.endsWith('/uvx.exe') || command.endsWith('\\uvx.exe'))) {
     if (!base.PYTHONIOENCODING) base.PYTHONIOENCODING = 'utf-8';
     if (!base.PYTHONUTF8) base.PYTHONUTF8 = '1';
   }
@@ -380,7 +380,7 @@ export function buildCodexMcpBlock(
           lines.push(`args = ${tomlArray(stdio.args)}`);
         }
       }
-      const env = useWrapper ? getCodexWrapperEnv(server) : normalizeStringRecord(stdio.env);
+      const env = useWrapper ? getCodexWrapperEnv(server, platform) : normalizeStringRecord(stdio.env);
       if (env) {
         lines.push(`env = ${tomlInlineTable(env)}`);
       }

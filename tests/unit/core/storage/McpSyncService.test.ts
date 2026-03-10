@@ -28,10 +28,8 @@ function createMockAdapter(initialFiles: Record<string, string> = {}) {
 
 function createStdioServer(name: string, overrides: Partial<ClianMcpServer> = {}): ClianMcpServer {
   return {
-    id: `${name}-id`,
     name,
     enabled: true,
-    type: 'stdio',
     contextSaving: true,
     disabledTools: [],
     description: '',
